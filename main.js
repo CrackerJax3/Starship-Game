@@ -31,35 +31,82 @@ function touchMouseReleased() {
   Input.thrustAmplification = null;
 }
 
+// Define joystick properties
+const joystickRadius = 100; // Radius of the joystick area
+let joystickCenter = { x: 0, y: 0 }; // Center of the joystick area
+
+function setJoystickPosition() {
+  joystickCenter.x = canvas.width / 2; // Center horizontally
+  joystickCenter.y = canvas.height - 100; // 100 pixels from the bottom
+}
+
 function setPosition(e) {
   e.preventDefault();
   
-  // Update position for touchmove and mousemove
+  // Update MouseDown state
   if (e.type === 'touchstart' || e.type === 'mousedown') {
     Input.MouseDown = true; // Set MouseDown to true on touchstart or mousedown
   } else if (e.type === 'touchend' || e.type === 'mouseup') {
     Input.MouseDown = false; // Set MouseDown to false on touchend or mouseup
+    Input.ArrowUp = false;
+    Input.ArrowLeft = false;
+    Input.ArrowRight = false;
+    Input.rotationAmplification = 0;
+    Input.thrustAmplification = 0;
   }
 
-  // Update position for touchmove and mousemove
-  if (e.type === 'touchmove' || e.type === 'mousemove') {
+  // Update position for touchmove and mousemove only if MouseDown is true
+  if (Input.MouseDown && (e.type === 'touchmove' || e.type === 'mousemove')) {
+    let clientX, clientY;
+
     if (e.touches) { // For touch events
-      Input.x = e.touches[0].clientX;
-      Input.y = e.touches[0].clientY;
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
     } else { // For mouse events
-      Input.x = e.clientX;
-      Input.y = e.clientY;
+      clientX = e.clientX;
+      clientY = e.clientY;
     }
-    
-    const halfWidth = canvas.width / 2;
-    const halfHeight = canvas.height / 2;
-    Input.ArrowUp = Input.y < halfHeight;
-    Input.ArrowLeft = Input.x < halfWidth;
-    Input.ArrowRight = Input.x > halfWidth;
-    
-    Input.rotationAmplification = Math.abs(halfWidth - Input.x) / ((halfWidth + Input.x) / 2);
-    Input.thrustAmplification = ((canvas.height - Input.y) / canvas.height) * 1.5;
+
+    // Calculate the distance from the joystick center
+    const dx = clientX - joystickCenter.x;
+    const dy = clientY - joystickCenter.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    // Limit the distance to the joystick radius
+    if (distance > joystickRadius) {
+      const angle = Math.atan2(dy, dx);
+      Input.x = joystickCenter.x + Math.cos(angle) * joystickRadius;
+      Input.y = joystickCenter.y + Math.sin(angle) * joystickRadius;
+    } else {
+      Input.x = clientX;
+      Input.y = clientY;
+    }
+
+    // Update control inputs based on joystick position
+    Input.ArrowUp = Input.y < joystickCenter.y;
+    Input.ArrowLeft = Input.x < joystickCenter.x;
+    Input.ArrowRight = Input.x > joystickCenter.x;
+
+    // Adjust the sensitivity of the amplifications
+    Input.rotationAmplification = Math.abs(joystickCenter.x - Input.x) / (joystickRadius * 2); // Less sensitive
+    Input.thrustAmplification = ((canvas.height - Input.y) / (canvas.height - joystickCenter.y)) * 0.75; // Less sensitive
   }
+}
+
+// Function to render the joystick
+function renderJoystick() {
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.3)'; // Joystick background with reduced opacity
+  ctx.beginPath();
+  ctx.arc(joystickCenter.x, joystickCenter.y, joystickRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw the joystick handle
+  const handleX = Input.x || joystickCenter.x;
+  const handleY = Input.y || joystickCenter.y;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'; // Joystick handle with reduced opacity
+  ctx.beginPath();
+  ctx.arc(handleX, handleY, joystickRadius / 2, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 // Add event listeners for mouse and touch events
@@ -69,6 +116,24 @@ window.document.addEventListener('touchstart', setPosition);
 window.document.addEventListener('touchend', setPosition);
 window.document.addEventListener('mousemove', setPosition);
 window.document.addEventListener('touchmove', setPosition);
+
+// Ensure the canvas is full screen and set joystick position on load
+window.addEventListener('load', () => {
+  fillScreen();
+  setJoystickPosition();
+});
+
+// Ensure the joystick is positioned correctly on window resize
+window.addEventListener('resize', () => {
+  fillScreen();
+  setJoystickPosition();
+});
+
+// Function to fit the canvas to the window
+function fillScreen() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
 
 function img(src) {
   const image = new Image();
@@ -472,6 +537,8 @@ class Game {
       ctx.textAlign = 'center';
       ctx.fillText(`${(Math.sqrt((this.ship.x - this.objective.x) ** 2 + (this.ship.y - this.objective.y) ** 2) / 200).toFixed(2)}km to ${this.objective.name}`, canvas.width / 2, 130);
     }
+    // Render the joystick
+    renderJoystick();
   }
 }
 
@@ -505,4 +572,10 @@ window.addEventListener('load', () => {
     // indirect recursion
     window.requestAnimationFrame(main);
   }));
+});
+
+// Ensure the joystick is positioned correctly on window resize
+window.addEventListener('resize', () => {
+  fillScreen();
+  setJoystickPosition();
 });
