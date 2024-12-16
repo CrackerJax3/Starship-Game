@@ -32,12 +32,21 @@ function touchMouseReleased() {
 }
 
 // Define joystick properties
-const joystickRadius = 100; // Radius of the joystick area
+let joystickRadius; // Joystick radius
 let joystickCenter = { x: 0, y: 0 }; // Center of the joystick area
 
 function setJoystickPosition() {
   joystickCenter.x = canvas.width / 2; // Center horizontally
   joystickCenter.y = canvas.height - (canvas.height / 4); // Offset from the bottom by 1/4 of the screen height
+}
+
+function setJoystickRadius() {
+  // Set joystick radius based on device type
+  if (window.innerWidth < 768) { // Assuming mobile devices have a width less than 768px
+    joystickRadius = window.innerWidth / 6; // 1/6 of screen width for mobile
+  } else {
+    joystickRadius = 100; // Fixed radius for PC
+  }
 }
 
 function setPosition(e) {
