@@ -1,7 +1,7 @@
-import Scene from './scenes';
-import GameObject from './gameobject';
-import Particle from './particle';
-import Ship from './ship';
+import Scene from './scenes.js';
+import GameObject from './gameobject.js';
+import Particle from './particle.js';
+import Ship from './ship.js';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use

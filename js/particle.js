@@ -1,4 +1,4 @@
-import GameObject from './gameobject';
+import GameObject from './gameobject.js';
 
 const PI_ON_180 = Math.PI / 180;
 
