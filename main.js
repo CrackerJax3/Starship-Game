@@ -43,7 +43,7 @@ function setJoystickPosition() {
 function setJoystickRadius() {
   // Set joystick radius based on device type
   if (window.innerWidth < 768) { // Assuming mobile devices have a width less than 768px
-    joystickRadius = window.innerWidth / 4; // 50% of screen width for diameter, so radius is 1/4
+    joystickRadius = window.innerWidth / 3; // 50% of screen width for diameter, so radius is 1/4
   } else {
     joystickRadius = 100; // Fixed radius for PC
   }
