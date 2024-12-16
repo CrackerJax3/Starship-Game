@@ -70,16 +70,16 @@ function img(src) {
 
 // store all the images in one Image object
 const Images = {
-  ship: img('./StarshipSprites/fullstack.png'),
-  shipTop: img('./StarshipSprites/starship.png'),
-  shipBottom: img('./StarshipSprites/booster.png'),
-  starlink: img('./images/Starlink.png'),
-  launchpad: img('./images/Launchpad.png'),
-  tower: img('./StarshipSprites/Tower.png'),
-  chopsticks: img('./StarshipSprites/Chopsticks.png'),
-  ground: img('./images/Ground.png'),
-  earth: img('./images/Earth.png'),
-  arrow_white: img('./images/Arrow White.png'),
+  ship: img('../StarshipSprites/fullstack.png'),
+  shipTop: img('../StarshipSprites/starship.png'),
+  shipBottom: img('../StarshipSprites/booster.png'),
+  starlink: img('../images/Starlink.png'),
+  launchpad: img('../images/Launchpad.png'),
+  tower: img('../StarshipSprites/Tower.png'),
+  chopsticks: img('../StarshipSprites/Chopsticks.png'),
+  ground: img('../images/Ground.png'),
+  earth: img('../images/Earth.png'),
+  arrow_white: img('../images/Arrow White.png'),
 };
 
 class Game {
