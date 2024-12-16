@@ -130,14 +130,14 @@ window.document.addEventListener('touchmove', setPosition);
 window.addEventListener('load', () => {
   fillScreen();
   setJoystickRadius(); // Set the joystick radius on load
-  setJoystickPosition();
+  setJoystickPosition(); // Set the joystick position on load
 });
 
 // Ensure the joystick is positioned correctly on window resize
 window.addEventListener('resize', () => {
   fillScreen();
   setJoystickRadius(); // Update the joystick radius on resize
-  setJoystickPosition();
+  setJoystickPosition(); // Update the joystick position on resize
 });
 
 // Function to fit the canvas to the window
