@@ -33,34 +33,42 @@ function touchMouseReleased() {
 
 function setPosition(e) {
   e.preventDefault();
+  
+  // Update position for touchmove and mousemove
   if (e.type === 'touchstart' || e.type === 'mousedown') {
-    Input.MouseDown = true;
+    Input.MouseDown = true; // Set MouseDown to true on touchstart or mousedown
+  } else if (e.type === 'touchend' || e.type === 'mouseup') {
+    Input.MouseDown = false; // Set MouseDown to false on touchend or mouseup
   }
-  if (e.type === 'touchstart' || e.type === 'touchmove') {
-    Input.x = e.touches[0].clientX;
-    Input.y = e.touches[0].clientY;
-  } else {
-    Input.x = e.clientX;
-    Input.y = e.clientY;
+
+  // Update position for touchmove and mousemove
+  if (e.type === 'touchmove' || e.type === 'mousemove') {
+    if (e.touches) { // For touch events
+      Input.x = e.touches[0].clientX;
+      Input.y = e.touches[0].clientY;
+    } else { // For mouse events
+      Input.x = e.clientX;
+      Input.y = e.clientY;
+    }
+    
+    const halfWidth = canvas.width / 2;
+    const halfHeight = canvas.height / 2;
+    Input.ArrowUp = Input.y < halfHeight;
+    Input.ArrowLeft = Input.x < halfWidth;
+    Input.ArrowRight = Input.x > halfWidth;
+    
+    Input.rotationAmplification = Math.abs(halfWidth - Input.x) / ((halfWidth + Input.x) / 2);
+    Input.thrustAmplification = ((canvas.height - Input.y) / canvas.height) * 1.5;
   }
-  const halfWidth = canvas.width / 2;
-  const halfHeight = canvas.height / 2;
-  if (Input.y < halfHeight) {
-    Input.ArrowUp = true;
-  }
-  if (Input.x < halfWidth - 100) {
-    Input.ArrowLeft = true;
-  } else if (Input.x > halfWidth - 100) {
-    Input.ArrowRight = true;
-  }
-  Input.rotationAmplification = Math.abs(halfWidth - Input.x) / ((halfWidth + Input.x) / 2);
-  Input.thrustAmplification = ((canvas.height - Input.y) / canvas.height) * 1.5;
 }
 
+// Add event listeners for mouse and touch events
 window.document.addEventListener('mousedown', setPosition);
-window.document.addEventListener('mouseup', touchMouseReleased);
+window.document.addEventListener('mouseup', setPosition);
 window.document.addEventListener('touchstart', setPosition);
-window.document.addEventListener('touchend', touchMouseReleased);
+window.document.addEventListener('touchend', setPosition);
+window.document.addEventListener('mousemove', setPosition);
+window.document.addEventListener('touchmove', setPosition);
 
 function img(src) {
   const image = new Image();
