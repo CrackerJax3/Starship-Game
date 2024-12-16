@@ -36,8 +36,15 @@ let joystickRadius; // Joystick radius
 let joystickCenter = { x: 0, y: 0 }; // Center of the joystick area
 
 function setJoystickPosition() {
-  joystickCenter.x = canvas.width / 2; // Center horizontally
-  joystickCenter.y = canvas.height - (canvas.height / 4); // Offset from the bottom by 1/4 of the screen height
+  
+   // Set joystick radius based on device type
+   if (window.innerWidth < 768) { // Assuming mobile devices have a width less than 768px
+    joystickCenter.x = canvas.width / 2; // Center horizontally
+    joystickCenter.y = canvas.height - (canvas.height / 4); // Offset from the bottom by 1/4 of the screen height
+  } else {
+    joystickCenter.x = canvas.width * .75; // Center horizontally
+    joystickCenter.y = canvas.height - (canvas.height / 4); // Offset from the bottom by 1/4 of the screen height
+  }
 }
 
 function setJoystickRadius() {
@@ -45,7 +52,7 @@ function setJoystickRadius() {
   if (window.innerWidth < 768) { // Assuming mobile devices have a width less than 768px
     joystickRadius = window.innerWidth / 3; // 50% of screen width for diameter, so radius is 1/4
   } else {
-    joystickRadius = 100; // Fixed radius for PC
+    joystickRadius = 50; // Fixed radius for PC
   }
 }
 
