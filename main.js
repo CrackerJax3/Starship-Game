@@ -37,7 +37,7 @@ let joystickCenter = { x: 0, y: 0 }; // Center of the joystick area
 
 function setJoystickPosition() {
   joystickCenter.x = canvas.width / 2; // Center horizontally
-  joystickCenter.y = canvas.height - 100; // 100 pixels from the bottom
+  joystickCenter.y = canvas.height - (canvas.height / 4); // Offset from the bottom by 1/4 of the screen height
 }
 
 function setPosition(e) {
