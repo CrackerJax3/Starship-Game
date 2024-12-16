@@ -48,9 +48,9 @@ function setPosition(e) {
   if (Input.y < halfHeight) {
     Input.ArrowUp = true;
   }
-  if (Input.x < halfWidth) {
+  if (Input.x < halfWidth - 100) {
     Input.ArrowLeft = true;
-  } else if (Input.x > halfWidth) {
+  } else if (Input.x > halfWidth - 100) {
     Input.ArrowRight = true;
   }
   Input.rotationAmplification = Math.abs(halfWidth - Input.x) / ((halfWidth + Input.x) / 2);
