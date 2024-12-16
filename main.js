@@ -43,7 +43,7 @@ function setJoystickPosition() {
 function setJoystickRadius() {
   // Set joystick radius based on device type
   if (window.innerWidth < 768) { // Assuming mobile devices have a width less than 768px
-    joystickRadius = window.innerWidth / 6; // 1/6 of screen width for mobile
+    joystickRadius = window.innerWidth / 4; // 50% of screen width for diameter, so radius is 1/4
   } else {
     joystickRadius = 100; // Fixed radius for PC
   }
@@ -129,12 +129,14 @@ window.document.addEventListener('touchmove', setPosition);
 // Ensure the canvas is full screen and set joystick position on load
 window.addEventListener('load', () => {
   fillScreen();
+  setJoystickRadius(); // Set the joystick radius on load
   setJoystickPosition();
 });
 
 // Ensure the joystick is positioned correctly on window resize
 window.addEventListener('resize', () => {
   fillScreen();
+  setJoystickRadius(); // Update the joystick radius on resize
   setJoystickPosition();
 });
 
