@@ -48,18 +48,11 @@ export default class Ship extends GameObject {
         const targetRotVel = Math.sign(diff) * Math.min(Math.abs(diff), JOYSTICK_MAX_ROT_SPEED);
         this.velocity.rotation += (targetRotVel - this.velocity.rotation) * JOYSTICK_ROT_INERTIA * deltaTime;
         // Thrust in facing direction, scaled by angular alignment with joystick:
-        // 100% within 20°, linear from 100% to ~5% between 20°-90°, linear from ~5% to 0% between 90°-180°
-        const absDiff = Math.abs(diff);
-        let thrustFactor;
-        if (absDiff <= 20) {
-          thrustFactor = 1.0;
-        } else if (absDiff <= 90) {
-          thrustFactor = 1.0 - (absDiff - 20) / 70 * 0.95;
-        } else {
-          thrustFactor = 0.05 * (180 - absDiff) / 90;
+        // thrust only fires when within 20° of joystick direction
+        if (Math.abs(diff) <= 20) {
+          this.velocity.x += Math.cos(this.rotation * PI_ON_180) * THRUST_SPEED * deltaTime;
+          this.velocity.y += Math.sin(this.rotation * PI_ON_180) * THRUST_SPEED * deltaTime;
         }
-        this.velocity.x += Math.cos(this.rotation * PI_ON_180) * THRUST_SPEED * thrustFactor * deltaTime;
-        this.velocity.y += Math.sin(this.rotation * PI_ON_180) * THRUST_SPEED * thrustFactor * deltaTime;
       } else if (!this.game.input.KeyA && !this.game.input.ArrowLeft && !this.game.input.KeyD && !this.game.input.ArrowRight) {
         this.velocity.rotation = 0;
       }
