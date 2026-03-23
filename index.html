@@ -9,7 +9,6 @@
 		* {
 			margin: 0;
 			overflow: hidden;
-			/* stop ios selection magnification/highlighting/dragging: */
 			-webkit-touch-callout: none;
 			-webkit-user-callout: none;
 			-webkit-user-select: none;
@@ -18,17 +17,164 @@
 			-webkit-highlight: none;
 			-ms-user-select: none;
 			user-select: none;
+			box-sizing: border-box;
+		}
+
+		.overlay {
+			position: fixed;
+			inset: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			background: rgba(0, 0, 0, 0.82);
+			z-index: 10;
+			overflow: visible;
+		}
+
+		.overlay-box {
+			background: rgba(10, 20, 40, 0.97);
+			border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 12px;
+			padding: 40px 48px;
+			text-align: center;
+			color: #fff;
+			font-family: 'Trebuchet MS', sans-serif;
+			max-width: 420px;
+			width: 90%;
+			overflow: visible;
+		}
+
+		.overlay-box h1 {
+			font-size: 1.8em;
+			margin-bottom: 8px;
+			letter-spacing: 1px;
+		}
+
+		.overlay-box h2 {
+			font-size: 1.5em;
+			margin-bottom: 16px;
+		}
+
+		.overlay-box p {
+			font-size: 0.95em;
+			color: rgba(255, 255, 255, 0.65);
+			margin-bottom: 20px;
+		}
+
+		.overlay-box input[type="text"] {
+			width: 100%;
+			padding: 10px 14px;
+			font-size: 1em;
+			font-family: 'Trebuchet MS', sans-serif;
+			background: rgba(255, 255, 255, 0.08);
+			border: 1px solid rgba(255, 255, 255, 0.25);
+			border-radius: 6px;
+			color: #fff;
+			outline: none;
+			margin-bottom: 16px;
+			user-select: text;
+			-webkit-user-select: text;
+			overflow: visible;
+		}
+
+		.overlay-box input[type="text"]::placeholder {
+			color: rgba(255, 255, 255, 0.3);
+		}
+
+		.overlay-box input[type="text"]:focus {
+			border-color: rgba(255, 255, 255, 0.55);
+		}
+
+		.btn {
+			padding: 10px 28px;
+			font-size: 1em;
+			font-family: 'Trebuchet MS', sans-serif;
+			background: rgba(255, 255, 255, 0.12);
+			border: 1px solid rgba(255, 255, 255, 0.3);
+			border-radius: 6px;
+			color: #fff;
+			cursor: pointer;
+			transition: background 0.15s;
+			margin: 4px;
+		}
+
+		.btn:hover {
+			background: rgba(255, 255, 255, 0.22);
+		}
+
+		.btn-primary {
+			background: rgba(29, 115, 255, 0.55);
+			border-color: rgba(29, 115, 255, 0.8);
+		}
+
+		.btn-primary:hover {
+			background: rgba(29, 115, 255, 0.75);
+		}
+
+		#scoreboard-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-bottom: 20px;
+			font-size: 0.95em;
+		}
+
+		#scoreboard-table th {
+			color: rgba(255, 255, 255, 0.5);
+			font-weight: normal;
+			padding: 4px 8px;
+			text-align: left;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		}
+
+		#scoreboard-table td {
+			padding: 6px 8px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		}
+
+		#scoreboard-table tr.highlight td {
+			color: #ffd700;
+			font-weight: bold;
+		}
+
+		#scoreboard-status {
+			color: rgba(255, 255, 255, 0.45);
+			font-size: 0.85em;
+			margin-bottom: 12px;
 		}
 	</style>
-	<!-- <script type="module" src="./js/gameobject.js"></script>
-	<script type="module" src="./js/scenes.js"></script>
-	<script type="module" src="./js/particle.js"></script>
-	<script type="module" src="./js/ship.js"></script> -->
-  <script type="module" crossorigin src="/Starship-Game/assets/index-Dt6L0WVs.js"></script>
+  <script type="module" crossorigin src="/Starship-Game/assets/index-CgQM_Sqm.js"></script>
 </head>
 
 <body>
-	
+	<!-- Name entry overlay — shown on first visit -->
+	<div id="overlay-name" class="overlay">
+		<div class="overlay-box">
+			<h1>Starship Lander</h1>
+			<p>Enter your callsign to appear on the global leaderboard.</p>
+			<input type="text" id="player-name-input" maxlength="20" placeholder="Your callsign..." autocomplete="off" />
+			<br>
+			<button class="btn btn-primary" id="play-btn">Play</button>
+		</div>
+	</div>
+
+	<!-- Scoreboard overlay — shown after winning -->
+	<div id="overlay-scoreboard" class="overlay" style="display:none">
+		<div class="overlay-box">
+			<h2>🏆 Leaderboard</h2>
+			<p id="scoreboard-status">Loading scores…</p>
+			<table id="scoreboard-table">
+				<thead>
+					<tr>
+						<th>#</th>
+						<th>Name</th>
+						<th>Time</th>
+					</tr>
+				</thead>
+				<tbody id="scoreboard-body"></tbody>
+			</table>
+			<button class="btn" id="close-scoreboard-btn">Close</button>
+		</div>
+	</div>
 </body>
 
 </html>
