@@ -183,6 +183,8 @@ class Game {
     this.launchTime = null; // the time when the Starship will launch
     this.starlinksReleased = false; // whether or not the Starlink satellites have been released
     this.won = false; // whether or not the game has been won
+    this.checkpointBoosterLanded = false; // checkpoint: booster has landed
+    this.checkpointTextTimer = 0; // how long to show checkpoint text (ms)
     this.particles = []; // array to store all particles created
     this.stars = []; // WIP
     // object to store info on the current objective
@@ -283,6 +285,8 @@ class Game {
     this.launchTime = null;
     this.starlinksReleased = false;
     this.won = false;
+    this.checkpointBoosterLanded = false;
+    this.checkpointTextTimer = 0;
     // reset the default objective
     this.objective.name = 'space';
     this.objective.text = 'Get to orbit!';
@@ -296,8 +300,41 @@ class Game {
     this.scene.add(this.ship);
   }
 
+  resetToCheckpoint() {
+    // Restore booster to its landed position
+    this.shipBottom.gravity = false;
+    this.shipBottom.x = 0;
+    this.shipBottom.y = 100;
+    this.shipBottom.rotation = 270;
+    this.shipBottom.velocity.x = this.shipBottom.velocity.y = this.shipBottom.velocity.rotation = 0;
+    this.shipBottom.removeEventListener('update');
+    this.scene.remove(this.shipBottom);
+    this.scene.add(this.shipBottom);
+    // Respawn Starship high enough for the player to regain control
+    this.shipTop.gravity = true;
+    this.shipTop.x = 0;
+    this.shipTop.y = -3000;
+    this.shipTop.rotation = 270;
+    this.shipTop.velocity.x = this.shipTop.velocity.y = this.shipTop.velocity.rotation = 0;
+    this.shipTop.removeEventListener('update');
+    this.ship = this.shipTop;
+    this.objective.controlShip = this.ship;
+    this.ship.addEventListener('update', this.ship.updateControl);
+    this.scene.add(this.ship);
+    // Restore objective
+    this.objective.name = 'landing pad';
+    this.objective.text = 'Land the Starship';
+    this.objective.type = 'location';
+    this.objective.x = 0;
+    this.objective.y = -100;
+    this.won = false;
+  }
+
   Update(deltaTime) {
     const game = this;
+    if (this.checkpointTextTimer > 0) {
+      this.checkpointTextTimer -= deltaTime * 1000;
+    }
     if (this.started) {
       if (this.launched || this.launchTime - performance.now() <= 0) {
         if (!this.launched) {
@@ -398,6 +435,8 @@ class Game {
             this.objective.text = 'Land the Starship';
             this.objective.x = 0;
             this.objective.y = -100;
+            this.checkpointBoosterLanded = true;
+            this.checkpointTextTimer = 3000;
           }
         } else if (this.objective.text === 'Land the Starship') {
           if (Math.abs(this.ship.x - this.objective.x) < 150 && Math.abs(this.ship.y - this.objective.y) < 150 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
@@ -553,6 +592,14 @@ class Game {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.textAlign = 'center';
       ctx.fillText(`${(Math.sqrt((this.ship.x - this.objective.x) ** 2 + (this.ship.y - this.objective.y) ** 2) / 200).toFixed(2)}km to ${this.objective.name}`, canvas.width / 2, 130);
+    }
+    // Checkpoint saved text
+    if (this.checkpointTextTimer > 0) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = `rgba(0, 255, 136, ${Math.min(this.checkpointTextTimer / 500, 1)})`;
+      ctx.font = '1.5em Trebuchet MS';
+      ctx.textAlign = 'center';
+      ctx.fillText('Checkpoint saved! Booster landed.', canvas.width / 2, canvas.height / 2);
     }
     // Render the joystick
     renderJoystick();

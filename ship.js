@@ -71,7 +71,11 @@ export default class Ship extends GameObject {
         this.game.explosion(this.x, this.y, 50, 500);
         this.game.scene.remove(this);
         setTimeout(() => {
-          this.game.reset();
+          if (this.game.checkpointBoosterLanded) {
+            this.game.resetToCheckpoint();
+          } else {
+            this.game.reset();
+          }
         }, 1000);
       }
       // if the ship hits the ground
@@ -80,7 +84,11 @@ export default class Ship extends GameObject {
         this.game.explosion(this.x, this.y, 50, 500);
         this.game.scene.remove(this);
         setTimeout(() => {
-          this.game.reset();
+          if (this.game.checkpointBoosterLanded) {
+            this.game.resetToCheckpoint();
+          } else {
+            this.game.reset();
+          }
         }, 1000);
       }
       // if the R key is pressed
