@@ -43,8 +43,8 @@ export default class Ship extends GameObject {
         const target = this.game.input.joystickAngle;
         let diff = ((target - this.rotation + 540) % 360) - 180;
         // Lerp velocity.rotation toward a capped target speed — feels slow and massive
-        const JOYSTICK_MAX_ROT_SPEED = 90; // deg/s maximum
-        const JOYSTICK_ROT_INERTIA = 4;    // lower = more inertia
+        const JOYSTICK_MAX_ROT_SPEED = 30; // deg/s maximum
+        const JOYSTICK_ROT_INERTIA = 2;   // lower = more inertia
         const targetRotVel = Math.sign(diff) * Math.min(Math.abs(diff), JOYSTICK_MAX_ROT_SPEED);
         this.velocity.rotation += (targetRotVel - this.velocity.rotation) * JOYSTICK_ROT_INERTIA * deltaTime;
         // Propel in the direction the rocket is facing
