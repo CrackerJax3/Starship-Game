@@ -24,11 +24,9 @@ window.addEventListener('keyup', ({ code }) => {
 
 function touchMouseReleased() {
   Input.ArrowUp = false;
-  Input.ArrowLeft = false;
-  Input.ArrowRight = false;
   Input.MouseDown = false;
-  Input.rotationAmplification = null;
   Input.thrustAmplification = null;
+  Input.joystickAngle = null;
 }
 
 // Define joystick properties
@@ -65,10 +63,8 @@ function setPosition(e) {
   } else if (e.type === 'touchend' || e.type === 'mouseup') {
     Input.MouseDown = false; // Set MouseDown to false on touchend or mouseup
     Input.ArrowUp = false;
-    Input.ArrowLeft = false;
-    Input.ArrowRight = false;
-    Input.rotationAmplification = 0;
     Input.thrustAmplification = 0;
+    Input.joystickAngle = null;
   }
 
   // Update position for touchmove and mousemove only if MouseDown is true
@@ -100,11 +96,16 @@ function setPosition(e) {
 
     // Update control inputs based on joystick position
     Input.ArrowUp = Input.y < joystickCenter.y;
-    Input.ArrowLeft = Input.x < joystickCenter.x;
-    Input.ArrowRight = Input.x > joystickCenter.x;
 
-    // Adjust the sensitivity of the amplifications
-    Input.rotationAmplification = Math.abs(joystickCenter.x - Input.x) / (joystickRadius * 2); // Less sensitive
+    // Calculate the joystick angle for direct rocket pointing
+    const jdx = Input.x - joystickCenter.x;
+    const jdy = Input.y - joystickCenter.y;
+    if (Math.sqrt(jdx * jdx + jdy * jdy) > joystickRadius * 0.1) {
+      Input.joystickAngle = Math.atan2(jdy, jdx) * (180 / Math.PI);
+    } else {
+      Input.joystickAngle = null;
+    }
+
     Input.thrustAmplification = ((canvas.height - Input.y) / (canvas.height - joystickCenter.y)) * 0.75; // Less sensitive
   }
 }

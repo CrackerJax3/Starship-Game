@@ -30,13 +30,18 @@ export default class Ship extends GameObject {
       if (this.game.input.KeyW || this.game.input.ArrowUp || this.game.input.Space) {
         this.thrust(deltaTime);
       }
-      // if the A key or the left arrow key is pressed
+      // if the A key or the left arrow key is pressed (keyboard only)
       if (this.game.input.KeyA || this.game.input.ArrowLeft) {
         this.rotate(-deltaTime);
       }
-      // if the D key or the right arrow key is pressed
+      // if the D key or the right arrow key is pressed (keyboard only)
       if (this.game.input.KeyD || this.game.input.ArrowRight) {
         this.rotate(deltaTime);
+      }
+      // Joystick direct pointing: set rotation to match joystick direction
+      if (this.game.input.joystickAngle !== null && this.game.input.joystickAngle !== undefined) {
+        this.rotation = this.game.input.joystickAngle;
+        this.velocity.rotation = 0;
       }
       // if the Escape key is pressed
       if (this.game.input.Escape) {
