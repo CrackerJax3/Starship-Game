@@ -132,12 +132,12 @@ export default class Ship extends GameObject {
   landTop(deltaTime) {
     this.land(deltaTime);
     // move towards original Starship resting position (top half of full stack)
-    this.y += (-100 - this.y) * deltaTime;
+    this.y += (-131 - this.y) * deltaTime;
     this.gravity = false;
     // when Starship is back in place on top of the booster, trigger win
-    if (Math.abs(this.x) < 1 && Math.abs(-100 - this.y) < 1 && Math.abs(270 - this.rotation) < 1) {
+    if (Math.abs(this.x) < 1 && Math.abs(-131 - this.y) < 1 && Math.abs(270 - this.rotation) < 1) {
       this.x = 0;
-      this.y = -100;
+      this.y = -131;
       this.rotation = 270;
       this.removeEventListener('update');
       this.game.won = true;

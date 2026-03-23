@@ -313,7 +313,7 @@ class Game {
     // Respawn Starship high enough for the player to regain control
     this.shipTop.gravity = true;
     this.shipTop.x = 0;
-    this.shipTop.y = -3000;
+    this.shipTop.y = -22000;
     this.shipTop.rotation = 270;
     this.shipTop.velocity.x = this.shipTop.velocity.y = this.shipTop.velocity.rotation = 0;
     this.shipTop.removeEventListener('update');
@@ -326,7 +326,7 @@ class Game {
     this.objective.text = 'Land the Starship';
     this.objective.type = 'location';
     this.objective.x = 0;
-    this.objective.y = -100;
+    this.objective.y = -131;
     this.won = false;
   }
 
@@ -434,7 +434,7 @@ class Game {
             this.ship.addEventListener('update', this.ship.updateControl);
             this.objective.text = 'Land the Starship';
             this.objective.x = 0;
-            this.objective.y = -100;
+            this.objective.y = -131;
             this.checkpointBoosterLanded = true;
             this.checkpointTextTimer = 3000;
           }
