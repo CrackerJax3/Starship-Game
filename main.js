@@ -183,6 +183,10 @@ class Game {
     this.launchTime = null; // the time when the Starship will launch
     this.starlinksReleased = false; // whether or not the Starlink satellites have been released
     this.won = false; // whether or not the game has been won
+    this.wonAt = null; // timestamp when the game was won
+    this.missionStartTime = null; // timestamp when the rocket launched
+    this.missionTime = 0; // elapsed mission time in ms
+    this.bestTime = parseFloat(localStorage.getItem('bestTime')) || null;
     this.checkpointBoosterLanded = false; // checkpoint: booster has landed
     this.checkpointTextTimer = 0; // how long to show checkpoint text (ms)
     this.particles = []; // array to store all particles created
@@ -285,6 +289,9 @@ class Game {
     this.launchTime = null;
     this.starlinksReleased = false;
     this.won = false;
+    this.wonAt = null;
+    this.missionStartTime = null;
+    this.missionTime = 0;
     this.checkpointBoosterLanded = false;
     this.checkpointTextTimer = 0;
     // reset the default objective
@@ -339,6 +346,7 @@ class Game {
       if (this.launched || this.launchTime - performance.now() <= 0) {
         if (!this.launched) {
           this.launched = true;
+          this.missionStartTime = performance.now();
           // move and rotate the ship slightly
           //this.ship.x = -20;
           this.ship.rotation = -91;
@@ -461,6 +469,24 @@ class Game {
           this.particles.push(particle);
         }
       }
+      // update mission timer
+      if (this.launched && !this.won) {
+        this.missionTime = performance.now() - this.missionStartTime;
+      }
+      // handle win
+      if (this.won) {
+        if (this.wonAt === null) {
+          this.wonAt = performance.now();
+          if (this.bestTime === null || this.missionTime < this.bestTime) {
+            this.bestTime = this.missionTime;
+            localStorage.setItem('bestTime', this.bestTime);
+          }
+        }
+        // restart after 2s cooldown
+        if (performance.now() - this.wonAt > 2000 && (this.input.Space || this.input.ArrowUp || this.input.KeyW || this.input.joystickAngle !== null)) {
+          this.reset();
+        }
+      }
     } else if (this.input.KeyW || this.input.ArrowUp || this.input.Space) {
       this.started = true;
       this.launchTime = performance.now() + 5000;
@@ -503,6 +529,13 @@ class Game {
         this.Camera.y += Math.random() * 100 * SHAKE_CONSTANT - (100 * SHAKE_CONSTANT) / 2;
       }
     }
+  }
+
+  formatTime(ms) {
+    const totalSecs = ms / 1000;
+    const m = Math.floor(totalSecs / 60);
+    const s = (totalSecs % 60).toFixed(2).padStart(5, '0');
+    return `${m}:${s}`;
   }
 
   // render
@@ -572,11 +605,23 @@ class Game {
         ctx.fillText(`Launch in T${((performance.now() - this.launchTime) / 1000).toFixed(2)}`, Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
       } else if (this.won) {
         ctx.fillText('Mission Success!', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
+        ctx.font = '1em Trebuchet MS';
+        ctx.fillText('Press space or tap to play again', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4) + 30);
       }
     } else {
       ctx.fillText('Press space or tap to start!', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
       ctx.font = '1em Trebuchet MS';
       ctx.fillText('On mobile, tap higher for thrust, lower half to rotate)', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4) + 30);
+    }
+    // timer + best time (top center)
+    if (this.launched) {
+      ctx.font = '1.5em Trebuchet MS';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(this.formatTime(this.missionTime), Math.floor(canvas.width / 2), 30);
+      ctx.font = '1em Trebuchet MS';
+      ctx.fillStyle = this.bestTime !== null && this.missionTime === this.bestTime ? '#ffd700' : 'rgba(255,255,255,0.6)';
+      ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', Math.floor(canvas.width / 2), 55);
     }
     // objective
     ctx.font = '1.5em Trebuchet MS';
