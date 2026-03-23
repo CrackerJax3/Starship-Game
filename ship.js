@@ -38,12 +38,14 @@ export default class Ship extends GameObject {
       if (this.game.input.KeyD || this.game.input.ArrowRight) {
         this.rotate(deltaTime);
       }
-      // Joystick pointing with inertia: smoothly rotate toward joystick direction
+      // Joystick pointing: rotate toward joystick direction, stop immediately on release
       if (this.game.input.joystickAngle !== null && this.game.input.joystickAngle !== undefined) {
         const target = this.game.input.joystickAngle;
         let diff = ((target - this.rotation + 540) % 360) - 180;
-        const JOYSTICK_ROTATION_SPEED = 300;
+        const JOYSTICK_ROTATION_SPEED = 150;
         this.velocity.rotation = diff * JOYSTICK_ROTATION_SPEED * deltaTime;
+      } else {
+        this.velocity.rotation = 0;
       }
       // if the Escape key is pressed
       if (this.game.input.Escape) {
