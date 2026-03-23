@@ -367,7 +367,7 @@ class Game {
                 game.scene.remove(this);
                 if (this.id === 10) {
                   game.objective.name = 'landing pad';
-                  game.objective.text = 'Land the booster (press "c" to catch Booster at tower arms)';
+                  game.objective.text = 'Land the booster';
                   game.objective.type = 'location';
                   game.objective.x = 0;
                   game.objective.y = -80;
@@ -388,21 +388,17 @@ class Game {
           this.starlinksReleased = true;
         }
       } else if (this.objective.name === 'landing pad') {
-        if (this.objective.text === 'Land the booster (press "c" to catch Booster at tower arms)') {
-          if ((this.input.KeyC || this.input.MouseDown) && Math.abs(this.ship.x - this.objective.x) < 50 && Math.abs(this.ship.y - this.objective.y) < 50 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
-            this.input.KeyC = false;
-            this.input.MouseDown = false;
+        if (this.objective.text === 'Land the booster') {
+          if (Math.abs(this.ship.x - this.objective.x) < 50 && Math.abs(this.ship.y - this.objective.y) < 50 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
             this.ship.removeEventListener('update');
             this.ship.addEventListener('update', this.ship.landBottom);
             this.ship = this.shipTop;
             this.objective.controlShip = this.ship;
             this.ship.addEventListener('update', this.ship.updateControl);
-            this.objective.text = 'Land the Starship (press "c" to catch Starship at tower arms)';
+            this.objective.text = 'Land the Starship';
           }
-        } else if (this.objective.text === 'Land the Starship (press "c" to catch Starship at tower arms)') {
-          if ((this.input.KeyC || this.input.MouseDown) && Math.abs(this.ship.x - this.objective.x) < 50 && Math.abs(this.ship.y - this.objective.y) < 50 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
-            this.input.KeyC = false;
-            this.input.MouseDown = false;
+        } else if (this.objective.text === 'Land the Starship') {
+          if (Math.abs(this.ship.x - this.objective.x) < 50 && Math.abs(this.ship.y - this.objective.y) < 50 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
             this.ship.removeEventListener('update');
             this.ship.addEventListener('update', this.ship.landTop);
             this.objective.text = '';
