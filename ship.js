@@ -47,9 +47,10 @@ export default class Ship extends GameObject {
         const JOYSTICK_ROT_INERTIA = 2;   // lower = more inertia
         const targetRotVel = Math.sign(diff) * Math.min(Math.abs(diff), JOYSTICK_MAX_ROT_SPEED);
         this.velocity.rotation += (targetRotVel - this.velocity.rotation) * JOYSTICK_ROT_INERTIA * deltaTime;
-        // Propel in the direction the rocket is facing
-        this.velocity.x += Math.cos(this.rotation * PI_ON_180) * THRUST_SPEED * deltaTime;
-        this.velocity.y += Math.sin(this.rotation * PI_ON_180) * THRUST_SPEED * deltaTime;
+        // Thrust in facing direction, scaled by alignment with joystick (full when aligned, zero when perpendicular/opposite)
+        const thrustFactor = Math.max(0, Math.cos(diff * PI_ON_180));
+        this.velocity.x += Math.cos(this.rotation * PI_ON_180) * THRUST_SPEED * thrustFactor * deltaTime;
+        this.velocity.y += Math.sin(this.rotation * PI_ON_180) * THRUST_SPEED * thrustFactor * deltaTime;
       } else {
         this.velocity.rotation = 0;
       }
