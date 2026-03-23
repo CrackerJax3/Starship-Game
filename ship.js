@@ -42,13 +42,22 @@ export default class Ship extends GameObject {
       if (this.game.input.joystickAngle !== null && this.game.input.joystickAngle !== undefined) {
         const target = this.game.input.joystickAngle;
         let diff = ((target - this.rotation + 540) % 360) - 180;
-        // Lerp velocity.rotation toward a capped target speed — feels slow and massive
-        const JOYSTICK_MAX_ROT_SPEED = 30; // deg/s maximum
-        const JOYSTICK_ROT_INERTIA = 2;   // lower = more inertia
+        // Lerp velocity.rotation toward a capped target speed
+        const JOYSTICK_MAX_ROT_SPEED = 50; // deg/s maximum
+        const JOYSTICK_ROT_INERTIA = 2;    // lower = more inertia
         const targetRotVel = Math.sign(diff) * Math.min(Math.abs(diff), JOYSTICK_MAX_ROT_SPEED);
         this.velocity.rotation += (targetRotVel - this.velocity.rotation) * JOYSTICK_ROT_INERTIA * deltaTime;
-        // Thrust in facing direction, scaled by alignment with joystick (full when aligned, zero when perpendicular/opposite)
-        const thrustFactor = Math.max(0, Math.cos(diff * PI_ON_180));
+        // Thrust in facing direction, scaled by angular alignment with joystick:
+        // 100% within 20°, linear from 100% to ~5% between 20°-90°, linear from ~5% to 0% between 90°-180°
+        const absDiff = Math.abs(diff);
+        let thrustFactor;
+        if (absDiff <= 20) {
+          thrustFactor = 1.0;
+        } else if (absDiff <= 90) {
+          thrustFactor = 1.0 - (absDiff - 20) / 70 * 0.95;
+        } else {
+          thrustFactor = 0.05 * (180 - absDiff) / 90;
+        }
         this.velocity.x += Math.cos(this.rotation * PI_ON_180) * THRUST_SPEED * thrustFactor * deltaTime;
         this.velocity.y += Math.sin(this.rotation * PI_ON_180) * THRUST_SPEED * thrustFactor * deltaTime;
       } else {
