@@ -38,12 +38,17 @@ export default class Ship extends GameObject {
       if (this.game.input.KeyD || this.game.input.ArrowRight) {
         this.rotate(deltaTime);
       }
-      // Joystick pointing: rotate toward joystick direction, stop immediately on release
+      // Joystick: apply torque toward joystick direction (massive/inertial feel) and thrust in that direction
       if (this.game.input.joystickAngle !== null && this.game.input.joystickAngle !== undefined) {
         const target = this.game.input.joystickAngle;
         let diff = ((target - this.rotation + 540) % 360) - 180;
-        const JOYSTICK_ROTATION_SPEED = 150;
-        this.velocity.rotation = diff * JOYSTICK_ROTATION_SPEED * deltaTime;
+        // Angular acceleration instead of direct assignment — builds up slowly like a heavy object
+        const JOYSTICK_TORQUE = 40;
+        this.velocity.rotation += diff * JOYSTICK_TORQUE * deltaTime;
+        // Also propel in the joystick direction so pointing down drives the rocket down
+        const angleRad = target * PI_ON_180;
+        this.velocity.x += Math.cos(angleRad) * THRUST_SPEED * deltaTime;
+        this.velocity.y += Math.sin(angleRad) * THRUST_SPEED * deltaTime;
       } else {
         this.velocity.rotation = 0;
       }
