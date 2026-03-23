@@ -370,7 +370,7 @@ class Game {
                   game.objective.text = 'Land the booster';
                   game.objective.type = 'location';
                   game.objective.x = 0;
-                  game.objective.y = -80;
+                  game.objective.y = 100;
                   game.ship.removeEventListener('update');
                   game.ship = game.shipBottom;
                   game.objective.controlShip = game.ship;
@@ -389,16 +389,18 @@ class Game {
         }
       } else if (this.objective.name === 'landing pad') {
         if (this.objective.text === 'Land the booster') {
-          if (Math.abs(this.ship.x - this.objective.x) < 50 && Math.abs(this.ship.y - this.objective.y) < 50 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
+          if (Math.abs(this.ship.x - this.objective.x) < 150 && Math.abs(this.ship.y - this.objective.y) < 150 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
             this.ship.removeEventListener('update');
             this.ship.addEventListener('update', this.ship.landBottom);
             this.ship = this.shipTop;
             this.objective.controlShip = this.ship;
             this.ship.addEventListener('update', this.ship.updateControl);
             this.objective.text = 'Land the Starship';
+            this.objective.x = 0;
+            this.objective.y = -100;
           }
         } else if (this.objective.text === 'Land the Starship') {
-          if (Math.abs(this.ship.x - this.objective.x) < 50 && Math.abs(this.ship.y - this.objective.y) < 50 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
+          if (Math.abs(this.ship.x - this.objective.x) < 150 && Math.abs(this.ship.y - this.objective.y) < 150 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
             this.ship.removeEventListener('update');
             this.ship.addEventListener('update', this.ship.landTop);
             this.objective.text = '';

@@ -124,37 +124,22 @@ export default class Ship extends GameObject {
 
   landBottom(deltaTime) {
     this.land(deltaTime);
-    // move towards y = 145
-    // this.y += (100 - this.y) * deltaTime;
-    this.y += (145 - this.y) * deltaTime;
-    this.x += (-140 - this.x) * deltaTime;
+    // move towards original booster resting position (bottom half of full stack)
+    this.y += (100 - this.y) * deltaTime;
   }
 
   landTop(deltaTime) {
     this.land(deltaTime);
-    // move towards y = -98
-    //this.y += (-125 - this.y) * deltaTime;
-    this.y += (180 - this.y) * deltaTime;
-    this.x += (160 - this.x) * deltaTime;
+    // move towards original Starship resting position (top half of full stack)
+    this.y += (-100 - this.y) * deltaTime;
     this.gravity = false;
-    // if caught by chopsticks
-    // if x = 0 and -99 <= y <= -97 and 269 <= rotation <= 271
-    if (Math.round(Math.abs(this.x)) === 0 && Math.abs(-98 - this.y) < 1 && Math.abs(270 - this.rotation) < 1) {
-      // set x to 0 (an imperceptible change, but important for clean connection to bottom)
+    // when Starship is back in place on top of the booster, trigger win
+    if (Math.abs(this.x) < 1 && Math.abs(-100 - this.y) < 1 && Math.abs(270 - this.rotation) < 1) {
       this.x = 0;
+      this.y = -100;
       this.rotation = 270;
       this.removeEventListener('update');
-      this.addEventListener('update', function update() {
-        // move towards y = 64
-        this.y += (64 - this.y) * deltaTime;
-        // move the connected towards y = 81
-        this.game.chopsticks.y += (81 - this.game.chopsticks.y) * deltaTime;
-        // if 63 <= y <= 65
-        if (Math.abs(64 - this.y) < 1) {
-          this.removeEventListener('update');
-          this.game.won = true;
-        }
-      });
+      this.game.won = true;
     }
   }
 }
