@@ -2,6 +2,7 @@ import Scene from './scenes.js';
 import GameObject from './gameobject.js';
 import Particle from './particle.js';
 import Ship from './ship.js';
+import { submitScore, getTopScores } from './leaderboard.js';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use
@@ -14,11 +15,18 @@ const ctx = canvas.getContext('2d');
 
 // object to store all input
 const Input = {};
+function overlayVisible() {
+  return document.getElementById('overlay-name').style.display !== 'none'
+    || document.getElementById('overlay-scoreboard').style.display !== 'none';
+}
+
 // keydown event listener (we only need the code property of the event object)
 window.addEventListener('keydown', ({ code }) => {
+  if (overlayVisible()) return;
   Input[code] = true;
 });
 window.addEventListener('keyup', ({ code }) => {
+  if (overlayVisible()) return;
   Input[code] = false;
 });
 
@@ -55,6 +63,7 @@ function setJoystickRadius() {
 }
 
 function setPosition(e) {
+  if (overlayVisible()) return;
   e.preventDefault();
   
   // Update MouseDown state
@@ -481,9 +490,15 @@ class Game {
             this.bestTime = this.missionTime;
             localStorage.setItem('bestTime', this.bestTime);
           }
+          const playerName = localStorage.getItem('starshipPlayerName') || 'Anonymous';
+          const finalTime = this.missionTime;
+          submitScore(playerName, finalTime).then(() => {
+            getTopScores(10).then((scores) => showScoreboard(scores, finalTime));
+          });
         }
         // restart after 2s cooldown
         if (performance.now() - this.wonAt > 2000 && (this.input.Space || this.input.ArrowUp || this.input.KeyW || this.input.joystickAngle !== null)) {
+          hideScoreboard();
           this.reset();
         }
       }
@@ -613,16 +628,14 @@ class Game {
       ctx.font = '1em Trebuchet MS';
       ctx.fillText('On mobile, tap higher for thrust, lower half to rotate)', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4) + 30);
     }
-    // timer + best time (top center)
-    if (this.launched) {
-      ctx.font = '1.5em Trebuchet MS';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(this.formatTime(this.missionTime), Math.floor(canvas.width / 2), 30);
-      ctx.font = '1em Trebuchet MS';
-      ctx.fillStyle = this.bestTime !== null && this.missionTime === this.bestTime ? '#ffd700' : 'rgba(255,255,255,0.6)';
-      ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', Math.floor(canvas.width / 2), 55);
-    }
+    // timer + best time (top center) — always visible
+    ctx.font = '1.5em Trebuchet MS';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(this.formatTime(this.missionTime), Math.floor(canvas.width / 2), 30);
+    ctx.font = '1em Trebuchet MS';
+    ctx.fillStyle = this.won && this.bestTime !== null && this.missionTime === this.bestTime ? '#ffd700' : 'rgba(255,255,255,0.6)';
+    ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', Math.floor(canvas.width / 2), 55);
     // objective
     ctx.font = '1.5em Trebuchet MS';
     ctx.textAlign = 'left';
@@ -631,12 +644,12 @@ class Game {
     ctx.fillText(`Altitude: ${Math.abs(this.ship.y / 200).toFixed(2)}km`, 10, 80);
     // arrow pointing to the objective
     if (this.objective.type === 'location') {
-      ctx.translate(canvas.width / 2, 60);
+      ctx.translate(canvas.width / 2, 110);
       ctx.rotate(Math.atan2(this.objective.y - this.ship.y, this.objective.x - this.ship.x) + Math.PI / 2);
       ctx.drawImage(Images.arrow_white, -Images.arrow_white.width / 2, -Images.arrow_white.height / 2);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.textAlign = 'center';
-      ctx.fillText(`${(Math.sqrt((this.ship.x - this.objective.x) ** 2 + (this.ship.y - this.objective.y) ** 2) / 200).toFixed(2)}km to ${this.objective.name}`, canvas.width / 2, 130);
+      ctx.fillText(`${(Math.sqrt((this.ship.x - this.objective.x) ** 2 + (this.ship.y - this.objective.y) ** 2) / 200).toFixed(2)}km to ${this.objective.name}`, canvas.width / 2, 180);
     }
     // Checkpoint saved text
     if (this.checkpointTextTimer > 0) {
@@ -650,6 +663,62 @@ class Game {
     renderJoystick();
   }
 }
+
+// --- Scoreboard helpers ---
+function formatTime(ms) {
+  const totalSecs = ms / 1000;
+  const m = Math.floor(totalSecs / 60);
+  const s = (totalSecs % 60).toFixed(2).padStart(5, '0');
+  return `${m}:${s}`;
+}
+
+function showScoreboard(scores, myTime) {
+  const body = document.getElementById('scoreboard-body');
+  const status = document.getElementById('scoreboard-status');
+  body.innerHTML = '';
+  if (scores.length === 0) {
+    status.textContent = 'No scores yet — Firebase not configured or you\'re the first!';
+  } else {
+    status.textContent = '';
+    scores.forEach((entry, i) => {
+      const tr = document.createElement('tr');
+      if (Math.round(entry.time) === Math.round(myTime)) tr.classList.add('highlight');
+      tr.innerHTML = `<td>${i + 1}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td>`;
+      body.appendChild(tr);
+    });
+  }
+  document.getElementById('overlay-scoreboard').style.display = 'flex';
+}
+
+function hideScoreboard() {
+  document.getElementById('overlay-scoreboard').style.display = 'none';
+}
+
+// --- Name entry setup ---
+window.addEventListener('load', () => {
+  const nameOverlay = document.getElementById('overlay-name');
+  const nameInput = document.getElementById('player-name-input');
+  const playBtn = document.getElementById('play-btn');
+  const closeBtn = document.getElementById('close-scoreboard-btn');
+
+  function confirmName() {
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+    localStorage.setItem('starshipPlayerName', name);
+    nameOverlay.style.display = 'none';
+  }
+
+  playBtn.addEventListener('click', confirmName);
+  nameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') confirmName(); });
+  closeBtn.addEventListener('click', hideScoreboard);
+
+  const saved = localStorage.getItem('starshipPlayerName');
+  if (saved) {
+    nameOverlay.style.display = 'none';
+  } else {
+    nameInput.focus();
+  }
+});
 
 // start game on load
 window.addEventListener('load', () => {
