@@ -9,6 +9,16 @@ function configured() {
 export async function submitScore(name, timeMs) {
   if (!configured()) return;
   try {
+    // Only submit if this is a new best for this username
+    const res = await fetch(`${BASE}/scores?key=${FIREBASE_API_KEY}&pageSize=200`);
+    const data = await res.json();
+    if (data.documents) {
+      const trimmedName = name.trim().slice(0, 20);
+      const existing = data.documents
+        .filter((doc) => doc.fields.name.stringValue === trimmedName)
+        .map((doc) => parseInt(doc.fields.time.integerValue, 10));
+      if (existing.length > 0 && Math.min(...existing) <= Math.round(timeMs)) return;
+    }
     await fetch(`${BASE}/scores?key=${FIREBASE_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -37,6 +47,14 @@ export async function getTopScores(n = 10) {
         name: doc.fields.name.stringValue,
         time: parseInt(doc.fields.time.integerValue, 10),
       }))
+      .reduce((acc, entry) => {
+        // Keep only the best time per username
+        const existing = acc.find((e) => e.name === entry.name);
+        if (!existing || entry.time < existing.time) {
+          return [...acc.filter((e) => e.name !== entry.name), entry];
+        }
+        return acc;
+      }, [])
       .sort((a, b) => a.time - b.time)
       .slice(0, n);
   } catch (e) {
