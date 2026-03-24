@@ -193,6 +193,7 @@ class Game {
     this.starlinksReleased = false; // whether or not the Starlink satellites have been released
     this.won = false; // whether or not the game has been won
     this.wonAt = null; // timestamp when the game was won
+    this.topScores = []; // cached top scores for mini leaderboard
     this.missionStartTime = null; // timestamp when the rocket launched
     this.missionTime = 0; // elapsed mission time in ms
     this.bestTime = parseFloat(localStorage.getItem('bestTime')) || null;
@@ -235,6 +236,7 @@ class Game {
     this.objective.controlShip = this.ship;
     this.scene.add(this.ship);
     this.ship.addEventListener('update', this.ship.updateControl);
+    this.loadLeaderboard();
   }
 
   // a function to create an explosion effect with particles
@@ -314,6 +316,7 @@ class Game {
     this.objective.controlShip = this.ship;
     this.ship.addEventListener('update', this.ship.updateControl);
     this.scene.add(this.ship);
+    this.loadLeaderboard();
   }
 
   resetToCheckpoint() {
@@ -344,6 +347,10 @@ class Game {
     this.objective.x = 0;
     this.objective.y = -131;
     this.won = false;
+  }
+
+  loadLeaderboard() {
+    getTopScores(10).then((scores) => { this.topScores = scores; });
   }
 
   Update(deltaTime) {
@@ -489,13 +496,11 @@ class Game {
           const playerName = localStorage.getItem('starshipPlayerName') || 'Anonymous';
           const finalTime = this.missionTime;
           submitScore(playerName, finalTime).then(() => {
-            getTopScores(10).then((scores) => showScoreboard(scores, finalTime));
+            getTopScores(10).then((scores) => {
+              this.topScores = scores;
+              showScoreboard(scores, finalTime);
+            });
           });
-        }
-        // restart after 2s cooldown
-        if (performance.now() - this.wonAt > 2000 && (this.input.Space || this.input.ArrowUp || this.input.KeyW || this.input.joystickAngle !== null)) {
-          hideScoreboard();
-          this.reset();
         }
       }
     } else if (this.input.KeyW || this.input.ArrowUp || this.input.Space) {
@@ -616,8 +621,6 @@ class Game {
         ctx.fillText(`Launch in T${((performance.now() - this.launchTime) / 1000).toFixed(2)}`, Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
       } else if (this.won) {
         ctx.fillText('Mission Success!', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
-        ctx.font = '1em Trebuchet MS';
-        ctx.fillText('Press space or tap to play again', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4) + 30);
       }
     } else {
       ctx.fillText('Press space or tap to start!', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
@@ -638,6 +641,23 @@ class Game {
     ctx.fillText(this.objective.text, 10, 30);
     ctx.fillText(`Rotation: ${Math.round(this.ship.rotation) % 360}°`, 10, 55);
     ctx.fillText(`Altitude: ${Math.abs(this.ship.y / 200).toFixed(2)}km`, 10, 80);
+    // Mini leaderboard (left HUD)
+    if (this.topScores.length > 0) {
+      const playerName = localStorage.getItem('starshipPlayerName') || '';
+      ctx.font = 'bold 0.75em Trebuchet MS';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.textAlign = 'left';
+      ctx.fillText('TOP 10', 10, 110);
+      ctx.font = '0.75em Trebuchet MS';
+      this.topScores.forEach((entry, i) => {
+        const y = 128 + i * 18;
+        ctx.fillStyle = entry.name === playerName ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.55)';
+        ctx.fillText(`${i + 1}. ${entry.name}`, 10, y);
+        ctx.textAlign = 'right';
+        ctx.fillText(this.formatTime(entry.time), 215, y);
+        ctx.textAlign = 'left';
+      });
+    }
     // arrow pointing to the objective
     if (this.objective.type === 'location') {
       ctx.translate(canvas.width / 2, 110);
@@ -706,7 +726,7 @@ window.addEventListener('load', () => {
 
   playBtn.addEventListener('click', confirmName);
   nameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') confirmName(); });
-  closeBtn.addEventListener('click', hideScoreboard);
+  // Play Again wired up in the game load listener below
 
   const saved = localStorage.getItem('starshipPlayerName');
   if (saved) {
@@ -732,6 +752,12 @@ window.addEventListener('load', () => {
   document.body.append(canvas);
 
   const game = new Game();
+
+  // Play Again button resets the game and hides the scoreboard
+  document.getElementById('close-scoreboard-btn').addEventListener('click', () => {
+    hideScoreboard();
+    game.reset();
+  });
   // performance control/measurement
   const MAX_FRAME = 100; // ensures that physics don't break on slow devices or when tabs are switched
   let previousFrame = 0; // stores the last time that the game loop was run

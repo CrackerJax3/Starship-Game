@@ -28,24 +28,17 @@ export async function submitScore(name, timeMs) {
 export async function getTopScores(n = 10) {
   if (!configured()) return [];
   try {
-    const res = await fetch(`${BASE}:runQuery?key=${FIREBASE_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        structuredQuery: {
-          from: [{ collectionId: 'scores' }],
-          orderBy: [{ field: { fieldPath: 'time' }, direction: 'ASCENDING' }],
-          limit: n,
-        },
-      }),
-    });
+    // Fetch up to 200 docs, sort client-side — avoids needing a Firestore index
+    const res = await fetch(`${BASE}/scores?key=${FIREBASE_API_KEY}&pageSize=200`);
     const data = await res.json();
-    return data
-      .filter((item) => item.document)
-      .map((item) => ({
-        name: item.document.fields.name.stringValue,
-        time: parseInt(item.document.fields.time.integerValue, 10),
-      }));
+    if (!data.documents) return [];
+    return data.documents
+      .map((doc) => ({
+        name: doc.fields.name.stringValue,
+        time: parseInt(doc.fields.time.integerValue, 10),
+      }))
+      .sort((a, b) => a.time - b.time)
+      .slice(0, n);
   } catch (e) {
     console.warn('Failed to fetch scores:', e);
     return [];
