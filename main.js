@@ -373,44 +373,40 @@ class Game {
       } /* if the objective is correct position */ else if (this.objective.name === 'correct position') {
         // if the Starship is less than 5km away from the location
         if (Math.sqrt((this.ship.x - this.objective.x) ** 2 + (this.ship.y - this.objective.y) ** 2) < 1000) {
-          // update the objective
+          // update the objective and schedule auto-separation
           this.objective.name = 'Stage separation';
-          this.objective.text = 'Initiate stage separation (press "e")';
+          this.objective.text = 'Stage separation in progress...';
           this.objective.type = 'interact';
           this.objective.controlShip = null;
-        }
-      } else if (this.objective.name === 'Stage separation') {
-        if (this.input.KeyE || this.input.MouseDown) {
-          this.input.KeyE = false;
-          this.input.MouseDown = false;
-          this.shipBottom.x = this.shipTop.x = this.ship.x;
-          this.shipBottom.y = this.shipTop.y = this.ship.y;
-          this.shipBottom.rotation = this.shipTop.rotation = this.ship.rotation;
-          this.shipBottom.velocity.x = this.shipTop.velocity.x = this.shipBottom.velocity.y = this.shipTop.velocity.y = 0;
-          this.shipBottom.velocity.rotation = this.shipTop.velocity.rotation = this.ship.velocity.rotation;
-          this.shipTop.x += Math.cos(this.ship.rotation * PI_ON_180) * 100;
-          this.shipTop.y += Math.sin(this.ship.rotation * PI_ON_180) * 100;
-          this.shipTop.thrust(0.15);
-          this.shipBottom.x += Math.cos(this.ship.rotation * PI_ON_180) * -100;
-          this.shipBottom.y += Math.sin(this.ship.rotation * PI_ON_180) * -100;
-          this.shipBottom.thrust(-0.15);
-          this.ship.removeEventListener('update');
-          this.scene.remove(this.ship);
-          this.ship = this.shipTop;
-          this.objective.controlShip = this.ship;
-          this.ship.addEventListener('update', this.ship.updateControl);
-          this.scene.add(this.ship);
-          this.scene.add(this.shipBottom);
-          this.objective.name = 'Starlink satellites';
-          this.objective.text = 'Release the Starlink satellites (press "e")';
-          this.objective.type = 'interact';
+          const game = this;
+          setTimeout(() => {
+            game.shipBottom.x = game.shipTop.x = game.ship.x;
+            game.shipBottom.y = game.shipTop.y = game.ship.y;
+            game.shipBottom.rotation = game.shipTop.rotation = game.ship.rotation;
+            game.shipBottom.velocity.x = game.shipTop.velocity.x = game.shipBottom.velocity.y = game.shipTop.velocity.y = 0;
+            game.shipBottom.velocity.rotation = game.shipTop.velocity.rotation = game.ship.velocity.rotation;
+            game.shipTop.x += Math.cos(game.ship.rotation * PI_ON_180) * 100;
+            game.shipTop.y += Math.sin(game.ship.rotation * PI_ON_180) * 100;
+            game.shipTop.thrust(0.15);
+            game.shipBottom.x += Math.cos(game.ship.rotation * PI_ON_180) * -100;
+            game.shipBottom.y += Math.sin(game.ship.rotation * PI_ON_180) * -100;
+            game.shipBottom.thrust(-0.15);
+            game.ship.removeEventListener('update');
+            game.scene.remove(game.ship);
+            game.ship = game.shipTop;
+            game.objective.controlShip = game.ship;
+            game.ship.addEventListener('update', game.ship.updateControl);
+            game.scene.add(game.ship);
+            game.scene.add(game.shipBottom);
+            game.objective.name = 'Starlink satellites';
+            game.objective.text = 'Deploying Starlink satellites...';
+            game.objective.type = 'interact';
+          }, 2000);
         }
       } else if (this.objective.name === 'Starlink satellites') {
         this.ship.velocity.x = this.ship.velocity.y = 100;
         this.ship.velocity.rotation = 0;
-        if (!this.starlinksReleased && (this.input.KeyE || this.input.MouseDown)) {
-          this.input.KeyE = false;
-          this.input.MouseDown = false;
+        if (!this.starlinksReleased) {
           for (let i = 1; i <= 10; i += 1) {
             const starlink = new GameObject(0, 0, 0, Images.starlink);
             starlink.id = i;
