@@ -9,13 +9,13 @@ function configured() {
 export async function submitScore(name, timeMs) {
   if (!configured()) return;
   try {
-    // Only submit if this is a new best for this username
+    // Only submit if this is a new best for this username (case-insensitive)
     const res = await fetch(`${BASE}/scores?key=${FIREBASE_API_KEY}&pageSize=200`);
     const data = await res.json();
     if (data.documents) {
-      const trimmedName = name.trim().slice(0, 20);
+      const trimmedName = name.trim().slice(0, 20).toLowerCase();
       const existing = data.documents
-        .filter((doc) => doc.fields.name.stringValue === trimmedName)
+        .filter((doc) => doc.fields.name.stringValue.toLowerCase() === trimmedName)
         .map((doc) => parseInt(doc.fields.time.integerValue, 10));
       if (existing.length > 0 && Math.min(...existing) <= Math.round(timeMs)) return;
     }
@@ -48,10 +48,11 @@ export async function getTopScores(n = 10) {
         time: parseInt(doc.fields.time.integerValue, 10),
       }))
       .reduce((acc, entry) => {
-        // Keep only the best time per username
-        const existing = acc.find((e) => e.name === entry.name);
+        // Keep only the best time per username (case-insensitive)
+        const key = entry.name.toLowerCase();
+        const existing = acc.find((e) => e.name.toLowerCase() === key);
         if (!existing || entry.time < existing.time) {
-          return [...acc.filter((e) => e.name !== entry.name), entry];
+          return [...acc.filter((e) => e.name.toLowerCase() !== key), entry];
         }
         return acc;
       }, [])
