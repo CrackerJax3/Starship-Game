@@ -35,6 +35,8 @@ function touchMouseReleased() {
   Input.MouseDown = false;
   Input.thrustAmplification = null;
   Input.joystickAngle = null;
+  Input.x = null;
+  Input.y = null;
 }
 
 // Define joystick properties
@@ -74,6 +76,8 @@ function setPosition(e) {
     Input.ArrowUp = false;
     Input.thrustAmplification = 0;
     Input.joystickAngle = null;
+    Input.x = null;
+    Input.y = null;
   }
 
   // Update position for touchmove and mousemove only if MouseDown is true
