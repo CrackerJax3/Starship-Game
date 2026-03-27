@@ -176,22 +176,30 @@
 			border: 1px solid rgba(255, 255, 255, 0.12);
 			border-left: none;
 			border-radius: 0 6px 6px 0;
-			color: rgba(255, 255, 255, 0.6);
-			font-size: 11px;
+			color: rgba(255, 255, 255, 0.7);
+			font-size: 14px;
 			cursor: pointer;
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			flex-shrink: 0;
-			writing-mode: vertical-rl;
-			letter-spacing: 1px;
 			user-select: none;
 			padding: 8px 0;
+			transition: background 0.15s, color 0.15s;
 		}
 
 		#ad-toggle:hover {
 			background: rgba(29, 115, 255, 0.4);
 			color: #fff;
+		}
+
+		#ad-toggle .arrow {
+			display: inline-block;
+			transition: transform 0.3s ease;
+		}
+
+		#ad-panel.collapsed #ad-toggle .arrow {
+			transform: rotate(180deg);
 		}
 	</style>
 	<script type="module" src="./main.js"></script>
@@ -209,7 +217,7 @@
 				data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
 				data-ad-slot="XXXXXXXXXX"></ins>
 		</div>
-		<div id="ad-toggle" title="Toggle ad">AD</div>
+		<div id="ad-toggle" title="Toggle ad"><span class="arrow">&#8249;</span></div>
 	</div>
 	<script>
 		(function () {
