@@ -143,12 +143,27 @@
 		}
 
 		/* ── AdSense left banner ── */
+		:root {
+			--ad-width: 160px;
+			--ad-height: min(600px, 80vh);
+			--toggle-width: 32px;
+			--toggle-font: 22px;
+		}
+
+		@media (max-width: 767px) {
+			:root {
+				--ad-width: 120px;
+				--ad-height: min(480px, 70vh);
+				--toggle-width: 44px;   /* meets touch target minimum */
+				--toggle-font: 26px;
+			}
+		}
+
 		#ad-panel {
 			position: fixed;
 			top: 50%;
 			left: 0;
 			transform: translateY(-50%);
-			width: 160px;
 			z-index: 20;
 			transition: transform 0.3s ease;
 			display: flex;
@@ -156,28 +171,30 @@
 		}
 
 		#ad-panel.collapsed {
-			transform: translateY(-50%) translateX(-160px);
+			transform: translateY(-50%) translateX(calc(-1 * var(--ad-width)));
 		}
 
 		#ad-content {
-			width: 160px;
-			min-height: 600px;
+			width: var(--ad-width);
+			height: var(--ad-height);
 			background: rgba(5, 12, 28, 0.92);
 			border-right: 1px solid rgba(255, 255, 255, 0.12);
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			flex-shrink: 0;
+			overflow: hidden;
 		}
 
 		#ad-toggle {
-			width: 28px;
+			width: var(--toggle-width);
+			min-height: 80px;
 			background: rgba(29, 115, 255, 0.35);
 			border: 1px solid rgba(29, 115, 255, 0.6);
 			border-left: none;
 			border-radius: 0 8px 8px 0;
 			color: #fff;
-			font-size: 20px;
+			font-size: var(--toggle-font);
 			font-weight: bold;
 			cursor: pointer;
 			display: flex;
@@ -185,7 +202,7 @@
 			justify-content: center;
 			flex-shrink: 0;
 			user-select: none;
-			padding: 12px 0;
+			padding: 16px 0;
 			transition: background 0.15s;
 		}
 
@@ -214,9 +231,11 @@
 		<div id="ad-content">
 			<!-- Replace data-ad-client and data-ad-slot with your own values -->
 			<ins class="adsbygoogle"
-				style="display:inline-block;width:160px;height:600px"
+				style="display:block;width:100%;height:100%"
 				data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-				data-ad-slot="XXXXXXXXXX"></ins>
+				data-ad-slot="XXXXXXXXXX"
+				data-ad-format="auto"
+				data-full-width-responsive="true"></ins>
 		</div>
 		<div id="ad-toggle" title="Toggle ad"><span class="arrow">&#9664;</span></div>
 	</div>
@@ -224,7 +243,10 @@
 		(function () {
 			var panel = document.getElementById('ad-panel');
 			var toggle = document.getElementById('ad-toggle');
-			var collapsed = localStorage.getItem('adPanelCollapsed') === 'true';
+			// Default: collapsed on mobile, expanded on desktop
+			var stored = localStorage.getItem('adPanelCollapsed');
+			var isMobile = window.innerWidth < 768;
+			var collapsed = stored !== null ? stored === 'true' : isMobile;
 			if (collapsed) panel.classList.add('collapsed');
 			toggle.addEventListener('click', function () {
 				panel.classList.toggle('collapsed');
