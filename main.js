@@ -3,6 +3,7 @@ import GameObject from './gameobject.js';
 import Particle from './particle.js';
 import Ship from './ship.js';
 import { submitScore, getTopScores } from './leaderboard.js';
+import { initAdMob } from './admob.js';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use
@@ -995,6 +996,9 @@ window.addEventListener('load', () => {
     nameInput.focus();
   });
 });
+
+// Initialise AdMob banner (no-op in browser)
+initAdMob();
 
 // start game on load
 window.addEventListener('load', () => {
