@@ -238,6 +238,17 @@
 			text-align: center;
 		}
 
+		/* Scoreboard action buttons row */
+		.scoreboard-buttons {
+			display: flex;
+			gap: 8px;
+			justify-content: center;
+		}
+		.scoreboard-buttons .btn {
+			flex: 1;
+			margin: 0;
+		}
+
 		/* World Record banner */
 		@keyframes wr-pulse {
 			0%, 100% { transform: scale(1); opacity: 1; }
@@ -330,6 +341,7 @@
 			<div class="pause-menu-buttons">
 				<button class="btn" id="pause-restart-btn">Restart</button>
 				<button class="btn" id="pause-username-btn">Callsign</button>
+				<button class="btn" id="pause-share-btn">Share</button>
 				<button class="btn btn-primary" id="pause-resume-btn">Continue</button>
 			</div>
 		</div>
@@ -364,7 +376,10 @@
 				</thead>
 				<tbody id="scoreboard-body"></tbody>
 			</table>
-			<button class="btn btn-primary" id="close-scoreboard-btn">Play Again</button>
+			<div class="scoreboard-buttons">
+				<button class="btn" id="scoreboard-share-btn">Share</button>
+				<button class="btn btn-primary" id="close-scoreboard-btn">Play Again</button>
+			</div>
 		</div>
 	</div>
 </body>

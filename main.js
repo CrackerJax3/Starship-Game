@@ -4,6 +4,7 @@ import Particle from './particle.js';
 import Ship from './ship.js';
 import { submitScore, getTopScores } from './leaderboard.js';
 import { initAdMob } from './admob.js';
+import { Share } from '@capacitor/share';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use
@@ -884,6 +885,47 @@ function renderConfetti(pieces) {
   ctx.globalAlpha = 1;
 }
 
+// --- Share ---
+const GAME_URL = 'https://spacex-starship-lander.pages.dev/';
+
+async function shareGame() {
+  const name = localStorage.getItem('starshipPlayerName') || 'Anonymous';
+  const bestMs = parseFloat(localStorage.getItem('bestTime'));
+  const rank = window._shareRank || null;
+
+  let text = `🚀 I'm ${name} and I landed the SpaceX Starship`;
+  if (bestMs) text += ` in ${formatTime(bestMs)}`;
+  if (rank) text += ` — ranked #${rank} on the global leaderboard`;
+  text += `! I bet you can't beat me!`;
+
+  try {
+    // Native Android/iOS share sheet via Capacitor
+    await Share.share({
+      title: 'Starship Lander',
+      text,
+      url: GAME_URL,
+      dialogTitle: 'Share with friends',
+    });
+  } catch {
+    // Fallback: Web Share API (some browsers)
+    if (navigator.share) {
+      navigator.share({ title: 'Starship Lander', text, url: GAME_URL }).catch(() => {});
+    } else {
+      // Last resort: copy to clipboard + toast
+      navigator.clipboard?.writeText(`${text}\n${GAME_URL}`).catch(() => {});
+      showToast('Link copied!');
+    }
+  }
+}
+
+function showToast(msg) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:10px 20px;border-radius:20px;font-family:Trebuchet MS,sans-serif;font-size:0.9em;z-index:99;pointer-events:none';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
 // --- Scoreboard helpers ---
 function formatTime(ms) {
   const totalSecs = ms / 1000;
@@ -893,6 +935,10 @@ function formatTime(ms) {
 }
 
 function showScoreboard(scores, myTime, isWorldRecord) {
+  // Store rank for share button
+  const rankIdx = scores.findIndex(s => Math.round(s.time) === Math.round(myTime));
+  window._shareRank = rankIdx >= 0 ? rankIdx + 1 : null;
+
   const body = document.getElementById('scoreboard-body');
   const status = document.getElementById('scoreboard-status');
   const wrBanner = document.getElementById('wr-banner');
@@ -964,7 +1010,10 @@ window.addEventListener('load', () => {
       status.textContent = '';
       scores.forEach((entry, i) => {
         const tr = document.createElement('tr');
-        if (entry.name === playerName) tr.classList.add('highlight');
+        if (entry.name === playerName) {
+          tr.classList.add('highlight');
+          window._shareRank = i + 1; // store rank for share button
+        }
         tr.innerHTML = `<td>${i + 1}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td>`;
         body.appendChild(tr);
       });
@@ -1029,6 +1078,10 @@ window.addEventListener('load', () => {
     hideScoreboard();
     game.reset();
   });
+
+  // Share buttons
+  document.getElementById('scoreboard-share-btn').addEventListener('click', shareGame);
+  document.getElementById('pause-share-btn').addEventListener('click', shareGame);
 
   // Burger menu restart button
   if (window._pauseRestartBtn) {
