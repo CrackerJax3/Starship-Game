@@ -10,9 +10,10 @@
         android:theme="@style/AppTheme">
 
         <!-- ── AdMob ── Replace value with your real App ID from admob.google.com ── -->
+        <!-- Using Google's official test App ID until a real one is configured -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX"/>
+            android:value="ca-app-pub-3940256099942544~3347511713"/>
         <!-- Delay measurement until the user grants consent (GDPR requirement) -->
         <meta-data
             android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
