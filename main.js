@@ -21,6 +21,10 @@ function overlayVisible() {
     || document.getElementById('overlay-pause').style.display !== 'none';
 }
 
+function vibrate(pattern) {
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
 // keydown event listener (we only need the code property of the event object)
 window.addEventListener('keydown', ({ code }) => {
   if (overlayVisible()) return;
@@ -65,6 +69,8 @@ function setJoystickRadius() {
 
 function setPosition(e) {
   if (overlayVisible()) return;
+  // Don't intercept events on UI buttons/inputs so they can receive clicks
+  if (e.target && e.target.closest && e.target.closest('button, input, a, select')) return;
   e.preventDefault();
   
   // Update MouseDown state
@@ -75,6 +81,8 @@ function setPosition(e) {
     Input.ArrowUp = false;
     Input.thrustAmplification = 0;
     Input.joystickAngle = null;
+    Input.x = joystickCenter.x;
+    Input.y = joystickCenter.y;
   }
 
   // Update position for touchmove and mousemove only if MouseDown is true
@@ -180,7 +188,7 @@ const Images = {
   tower: img('./StarshipSprites/Tower.png'),
   chopsticks: img('./StarshipSprites/Chopsticks.png'),
   ground: img('./images/Ground.png'),
-  earth: img('./images/Earth.png'),
+  earth: img('./images/Earth1.png'),
   arrow_white: img('./images/Arrow White.png'),
 };
 
@@ -198,8 +206,13 @@ class Game {
     this.missionStartTime = null; // timestamp when the rocket launched
     this.missionTime = 0; // elapsed mission time in ms
     this.bestTime = parseFloat(localStorage.getItem('bestTime')) || null;
+    this.checkpointInSpace = false; // checkpoint: stage separation done
     this.checkpointBoosterLanded = false; // checkpoint: booster has landed
     this.checkpointTextTimer = 0; // how long to show checkpoint text (ms)
+    this.checkpointText = ''; // message shown when a checkpoint is reached
+    this.descentAlerts = { 40: false, 30: false, 20: false }; // altitude descent warnings (km)
+    this.invertPromptTimer = 0; // how long to show the invert prompt (ms)
+    this.confetti = []; // world-record confetti pieces
     this.particles = []; // array to store all particles created
     this.stars = []; // WIP
     // object to store info on the current objective
@@ -243,6 +256,7 @@ class Game {
   // a function to create an explosion effect with particles
   // takes in the x and y coordinates of the explosion, how far the particles should spread, and how many particles should be created
   explosion(x, y, spread, count) {
+    vibrate([300]);
     const game = this;
     const fifth = count / 5; // a fifth of the particles to be created
     const fourFifths = 4 * fifth; // four fifths of the particles created
@@ -304,8 +318,13 @@ class Game {
     this.wonAt = null;
     this.missionStartTime = null;
     this.missionTime = 0;
+    this.checkpointInSpace = false;
     this.checkpointBoosterLanded = false;
     this.checkpointTextTimer = 0;
+    this.checkpointText = '';
+    this.descentAlerts = { 40: false, 30: false, 20: false };
+    this.invertPromptTimer = 0;
+    this.confetti = [];
     // reset the default objective
     this.objective.name = 'space';
     this.objective.text = 'Get to orbit!';
@@ -348,6 +367,46 @@ class Game {
     this.objective.x = 0;
     this.objective.y = -131;
     this.won = false;
+    this.descentAlerts = { 40: false, 30: false, 20: false };
+    this.invertPromptTimer = 0;
+  }
+
+  resetToSpaceCheckpoint() {
+    // Remove any ships from the scene
+    this.scene.remove(this.shipFull);
+    this.scene.remove(this.shipTop);
+    this.scene.remove(this.shipBottom);
+    // Reset booster so it is in the scene and ready for landing after Starlinks deploy
+    this.shipBottom.gravity = true;
+    this.shipBottom.x = 4700;
+    this.shipBottom.y = -26200;
+    this.shipBottom.rotation = 270;
+    this.shipBottom.velocity.x = 80;
+    this.shipBottom.velocity.y = 80;
+    this.shipBottom.velocity.rotation = 0;
+    this.shipBottom.removeEventListener('update');
+    this.scene.add(this.shipBottom);
+    // Respawn Starship in space for Starlink deployment
+    this.shipTop.gravity = true;
+    this.shipTop.x = 5000;
+    this.shipTop.y = -26000;
+    this.shipTop.rotation = 270;
+    this.shipTop.velocity.x = this.shipTop.velocity.y = this.shipTop.velocity.rotation = 0;
+    this.shipTop.removeEventListener('update');
+    this.ship = this.shipTop;
+    this.objective.controlShip = this.ship;
+    this.ship.addEventListener('update', this.ship.updateControl);
+    this.scene.add(this.ship);
+    // Reset Starlink deployment so it runs again from this checkpoint
+    this.starlinksReleased = false;
+    this.objective.name = 'Starlink satellites';
+    this.objective.text = 'Deploying Starlink satellites...';
+    this.objective.type = 'interact';
+    // Booster checkpoint not yet reached
+    this.checkpointBoosterLanded = false;
+    this.won = false;
+    this.descentAlerts = { 40: false, 30: false, 20: false };
+    this.invertPromptTimer = 0;
   }
 
   loadLeaderboard() {
@@ -367,6 +426,7 @@ class Game {
           // move and rotate the ship slightly
           //this.ship.x = -20;
           this.ship.rotation = -91;
+          vibrate([100, 50, 100, 50, 200]);
         }
         this.scene.update(deltaTime);
       }
@@ -409,6 +469,10 @@ class Game {
             game.objective.name = 'Starlink satellites';
             game.objective.text = 'Deploying Starlink satellites...';
             game.objective.type = 'interact';
+            game.checkpointInSpace = true;
+            game.checkpointText = 'Checkpoint saved! Stage separation complete.';
+            game.checkpointTextTimer = 3000;
+            vibrate([50, 30, 50, 30, 150]);
           }, 2000);
         }
       } else if (this.objective.name === 'Starlink satellites') {
@@ -444,6 +508,7 @@ class Game {
             }, starlink.id * 500);
           }
           this.starlinksReleased = true;
+          vibrate([30, 20, 30, 20, 30, 20, 30, 20, 30, 20, 30]);
         }
       } else if (this.objective.name === 'landing pad') {
         if (this.objective.text === 'Land the booster') {
@@ -457,7 +522,11 @@ class Game {
             this.objective.x = 0;
             this.objective.y = -131;
             this.checkpointBoosterLanded = true;
+            this.checkpointText = 'Checkpoint saved! Booster landed.';
             this.checkpointTextTimer = 3000;
+            this.descentAlerts = { 40: false, 30: false, 20: false };
+            this.invertPromptTimer = 0;
+            vibrate([200, 100, 400]);
           }
         } else if (this.objective.text === 'Land the Starship') {
           if (Math.abs(this.ship.x - this.objective.x) < 150 && Math.abs(this.ship.y - this.objective.y) < 150 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
@@ -486,10 +555,32 @@ class Game {
       if (this.launched && !this.won) {
         this.missionTime = performance.now() - this.missionStartTime;
       }
+      // descent altitude warnings (during landing phases only)
+      if (this.objective.name === 'landing pad' && this.objective.controlShip && this.ship.velocity.y > 30) {
+        const altKm = Math.abs(this.ship.y) / 200;
+        if (altKm <= 40 && !this.descentAlerts[40]) {
+          this.descentAlerts[40] = true;
+          vibrate([200, 100, 200]);
+        }
+        if (altKm <= 30 && !this.descentAlerts[30]) {
+          this.descentAlerts[30] = true;
+          vibrate([300, 100, 300]);
+        }
+        if (altKm <= 20 && !this.descentAlerts[20]) {
+          this.descentAlerts[20] = true;
+          vibrate([400, 100, 400, 100, 400]);
+          this.invertPromptTimer = 6000;
+        }
+      }
+      // tick invert prompt timer
+      if (this.invertPromptTimer > 0) {
+        this.invertPromptTimer -= deltaTime * 1000;
+      }
       // handle win
       if (this.won) {
         if (this.wonAt === null) {
           this.wonAt = performance.now();
+          vibrate([100, 50, 100, 50, 600]);
           if (this.bestTime === null || this.missionTime < this.bestTime) {
             this.bestTime = this.missionTime;
             localStorage.setItem('bestTime', this.bestTime);
@@ -499,7 +590,14 @@ class Game {
           submitScore(playerName, finalTime).then(() => {
             getTopScores(10).then((scores) => {
               this.topScores = scores;
-              showScoreboard(scores, finalTime);
+              const isWR = scores.length > 0
+                && scores[0].name.toLowerCase() === playerName.toLowerCase()
+                && Math.round(scores[0].time) === Math.round(finalTime);
+              if (isWR) {
+                this.confetti = spawnConfetti();
+                vibrate([100, 50, 100, 50, 100, 50, 100, 50, 800]);
+              }
+              showScoreboard(scores, finalTime, isWR);
             });
           });
         }
@@ -531,6 +629,7 @@ class Game {
     for (let i = 0; i < this.stars.length; i += 1) {
       this.stars[i].update(deltaTime);
     }
+    if (this.confetti.length > 0) updateConfetti(this.confetti, deltaTime);
     // smooth camera follow
     this.Camera.x += ((canvas.width / 2 - this.ship.x) - this.Camera.x) * this.Camera.smoothing;
     this.Camera.y += ((canvas.height / 2 - this.ship.y) - this.Camera.y) * this.Camera.smoothing;
@@ -598,8 +697,28 @@ class Game {
     // if the ship is less than 25km from space
     if (this.ship.y < -15000) {
       scale = 2 - Math.min(-(this.ship.y + 15000) / 7500, 2);
+      // Earth1.png is 602px vs the original 1000px — scale up to match visual size
+      const earthDrawScale = scale * (1000 / 602);
       const yOffset = Math.max((this.ship.y + 15000) / 100, -200);
-      ctx.drawImage(Images.earth, canvas.width / 2 - (canvas.width * scale) / 2, canvas.height + yOffset, canvas.width * scale, canvas.width * scale);
+      const earthW = canvas.width * earthDrawScale;
+      const earthX = canvas.width / 2 - earthW / 2;
+      const earthY = canvas.height + yOffset;
+      const earthCX = canvas.width / 2;
+      const earthCY = earthY + earthW / 2;
+      const earthR = earthW / 2;
+      // Atmosphere glow — fades in as the ship enters space
+      const atmosAlpha = Math.min(scale / 1.2, 1);
+      const atmosOuter = earthR * 1.28;
+      const atmosGrad = ctx.createRadialGradient(earthCX, earthCY, earthR * 0.88, earthCX, earthCY, atmosOuter);
+      atmosGrad.addColorStop(0, `rgba(100, 180, 255, ${0.55 * atmosAlpha})`);
+      atmosGrad.addColorStop(0.45, `rgba(60, 140, 255, ${0.22 * atmosAlpha})`);
+      atmosGrad.addColorStop(1, `rgba(20, 80, 200, 0)`);
+      ctx.fillStyle = atmosGrad;
+      ctx.beginPath();
+      ctx.arc(earthCX, earthCY, atmosOuter, 0, Math.PI * 2);
+      ctx.fill();
+      // Earth
+      ctx.drawImage(Images.earth, earthX, earthY, earthW, earthW);
     }
     // }
     // Scene {
@@ -690,11 +809,74 @@ class Game {
       ctx.fillStyle = `rgba(0, 255, 136, ${Math.min(this.checkpointTextTimer / 500, 1)})`;
       ctx.font = hudFontLg;
       ctx.textAlign = 'center';
-      ctx.fillText('Checkpoint saved! Booster landed.', canvas.width / 2, canvas.height / 2);
+      ctx.fillText(this.checkpointText || 'Checkpoint saved!', canvas.width / 2, canvas.height / 2);
+    }
+    // Invert-for-landing prompt
+    if (this.invertPromptTimer > 0) {
+      const alpha = Math.min(this.invertPromptTimer / 500, 1);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.textAlign = 'center';
+      ctx.font = hudFontLg;
+      ctx.fillStyle = `rgba(255, 80, 80, ${alpha})`;
+      ctx.fillText('INVERT FOR LANDING', canvas.width / 2, canvas.height / 2 - 40);
+      ctx.font = hudFontMd;
+      ctx.fillStyle = `rgba(255, 200, 80, ${alpha})`;
+      ctx.fillText('Rotate upright ↑ to prepare', canvas.width / 2, canvas.height / 2);
     }
     // Render the joystick
     renderJoystick();
+    // World-record confetti (screen-space, on top of everything)
+    if (this.confetti.length > 0) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      renderConfetti(this.confetti);
+    }
   }
+}
+
+// --- Confetti ---
+const CONFETTI_COLORS = ['#ffd700','#ff4e50','#00e5ff','#69ff47','#ff6fd8','#ffffff'];
+function spawnConfetti() {
+  const pieces = [];
+  for (let i = 0; i < 160; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width,
+      y: -10 - Math.random() * 200,
+      vx: (Math.random() - 0.5) * 180,
+      vy: 120 + Math.random() * 220,
+      rotation: Math.random() * 360,
+      vr: (Math.random() - 0.5) * 400,
+      w: 7 + Math.random() * 7,
+      h: 4 + Math.random() * 4,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      alpha: 1,
+    });
+  }
+  return pieces;
+}
+
+function updateConfetti(pieces, deltaTime) {
+  for (let i = pieces.length - 1; i >= 0; i--) {
+    const p = pieces[i];
+    p.x += p.vx * deltaTime;
+    p.y += p.vy * deltaTime;
+    p.rotation += p.vr * deltaTime;
+    p.vy += 60 * deltaTime; // gentle gravity
+    if (p.y > canvas.height + 20) p.alpha -= deltaTime * 2;
+    if (p.alpha <= 0) pieces.splice(i, 1);
+  }
+}
+
+function renderConfetti(pieces) {
+  for (const p of pieces) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.alpha);
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rotation * Math.PI / 180);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
 }
 
 // --- Scoreboard helpers ---
@@ -705,9 +887,11 @@ function formatTime(ms) {
   return `${m}:${s}`;
 }
 
-function showScoreboard(scores, myTime) {
+function showScoreboard(scores, myTime, isWorldRecord) {
   const body = document.getElementById('scoreboard-body');
   const status = document.getElementById('scoreboard-status');
+  const wrBanner = document.getElementById('wr-banner');
+  wrBanner.style.display = isWorldRecord ? 'block' : 'none';
   body.innerHTML = '';
   if (scores.length === 0) {
     status.textContent = 'No scores yet — Firebase not configured or you\'re the first!';
@@ -758,56 +942,46 @@ window.addEventListener('load', () => {
   const pauseOverlay = document.getElementById('overlay-pause');
   const burgerBtn = document.getElementById('burger-btn');
   const resumeBtn = document.getElementById('pause-resume-btn');
-  const scoreboardBtn = document.getElementById('pause-scoreboard-btn');
   const restartBtn = document.getElementById('pause-restart-btn');
   const usernameBtn = document.getElementById('pause-username-btn');
-  const shareBtn = document.getElementById('pause-share-btn');
-  const shareMenu = document.getElementById('share-menu');
 
-  const GAME_URL = window.location.href;
-  const SHARE_TEXT = 'Can you land the Starship? Play this SpaceX Starship Lander game!';
-
-  function buildShareLinks() {
-    const enc = encodeURIComponent;
-    document.getElementById('share-twitter').href =
-      `https://twitter.com/intent/tweet?text=${enc(SHARE_TEXT)}&url=${enc(GAME_URL)}`;
-    document.getElementById('share-reddit').href =
-      `https://www.reddit.com/submit?url=${enc(GAME_URL)}&title=${enc(SHARE_TEXT)}`;
-    document.getElementById('share-facebook').href =
-      `https://www.facebook.com/sharer/sharer.php?u=${enc(GAME_URL)}`;
-    document.getElementById('share-whatsapp').href =
-      `https://api.whatsapp.com/send?text=${enc(SHARE_TEXT + ' ' + GAME_URL)}`;
-    document.getElementById('share-telegram').href =
-      `https://t.me/share/url?url=${enc(GAME_URL)}&text=${enc(SHARE_TEXT)}`;
+  async function openPauseMenu() {
+    const status = document.getElementById('pause-scoreboard-status');
+    const body = document.getElementById('pause-scoreboard-body');
+    status.textContent = 'Loading scores…';
+    body.innerHTML = '';
+    pauseOverlay.style.display = 'flex';
+    const scores = await getTopScores(10);
+    const playerName = localStorage.getItem('starshipPlayerName') || '';
+    if (scores.length === 0) {
+      status.textContent = 'No scores yet — be the first!';
+    } else {
+      status.textContent = '';
+      scores.forEach((entry, i) => {
+        const tr = document.createElement('tr');
+        if (entry.name === playerName) tr.classList.add('highlight');
+        tr.innerHTML = `<td>${i + 1}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td>`;
+        body.appendChild(tr);
+      });
+    }
   }
-  buildShareLinks();
 
-  document.getElementById('share-copy').addEventListener('click', (e) => {
-    e.preventDefault();
-    navigator.clipboard.writeText(GAME_URL).then(() => {
-      const el = document.getElementById('share-copy');
-      el.textContent = 'Copied!';
-      setTimeout(() => { el.textContent = 'Copy Link'; }, 1800);
-    });
-  });
-
-  burgerBtn.addEventListener('click', () => {
+  function togglePauseMenu() {
     if (pauseOverlay.style.display === 'none' || pauseOverlay.style.display === '') {
-      shareMenu.classList.remove('open');
-      pauseOverlay.style.display = 'flex';
+      openPauseMenu();
     } else {
       pauseOverlay.style.display = 'none';
     }
+  }
+  burgerBtn.addEventListener('click', togglePauseMenu);
+  burgerBtn.addEventListener('touchend', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    togglePauseMenu();
   });
 
   resumeBtn.addEventListener('click', () => {
     pauseOverlay.style.display = 'none';
-  });
-
-  scoreboardBtn.addEventListener('click', async () => {
-    pauseOverlay.style.display = 'none';
-    const scores = await getTopScores(10);
-    showScoreboard(scores, null);
   });
 
   // restart wired after game is created — see below
@@ -819,16 +993,6 @@ window.addEventListener('load', () => {
     nameInput.value = localStorage.getItem('starshipPlayerName') || '';
     document.getElementById('overlay-name').style.display = 'flex';
     nameInput.focus();
-  });
-
-  shareBtn.addEventListener('click', () => {
-    // On mobile use Web Share API if available
-    if (navigator.share) {
-      navigator.share({ title: 'Starship Lander', text: SHARE_TEXT, url: GAME_URL }).catch(() => {});
-    } else {
-      shareMenu.classList.toggle('open');
-      shareBtn.textContent = shareMenu.classList.contains('open') ? 'Share Game ▴' : 'Share Game ▾';
-    }
   });
 });
 
@@ -867,11 +1031,13 @@ window.addEventListener('load', () => {
   let previousFrame = 0; // stores the last time that the game loop was run
   // game loop (an Immediately Invoked Function Expression that returns a function inside the `requestAnimationFrame`)
   window.requestAnimationFrame((function main(currentFrame) {
-    // update (pass in `deltaTime`: the time in seconds since the last frame, restricted by an upper bound of 100ms)
-    game.Update(Math.min(currentFrame - previousFrame, MAX_FRAME) / 1000);
+    if (!overlayVisible()) {
+      // update (pass in `deltaTime`: the time in seconds since the last frame, restricted by an upper bound of 100ms)
+      game.Update(Math.min(currentFrame - previousFrame, MAX_FRAME) / 1000);
+    }
     // render
     game.Render();
-    // reset `previousFrame` to allow measurement of `deltaTime`
+    // always advance previousFrame so deltaTime doesn't spike after resuming from pause
     previousFrame = currentFrame;
     // indirect recursion
     window.requestAnimationFrame(main);

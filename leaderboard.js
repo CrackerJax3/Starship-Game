@@ -32,11 +32,19 @@ export async function getTopScores(n = 10) {
     const res = await fetch(`${BASE}/scores?key=${FIREBASE_API_KEY}&pageSize=200`);
     const data = await res.json();
     if (!data.documents) return [];
-    return data.documents
-      .map((doc) => ({
-        name: doc.fields.name.stringValue,
-        time: parseInt(doc.fields.time.integerValue, 10),
-      }))
+    const allScores = data.documents.map((doc) => ({
+      name: doc.fields.name.stringValue,
+      time: parseInt(doc.fields.time.integerValue, 10),
+    }));
+    // Keep only each player's best (lowest) time
+    const best = new Map();
+    for (const entry of allScores) {
+      const key = entry.name.toLowerCase();
+      if (!best.has(key) || entry.time < best.get(key).time) {
+        best.set(key, entry);
+      }
+    }
+    return Array.from(best.values())
       .sort((a, b) => a.time - b.time)
       .slice(0, n);
   } catch (e) {

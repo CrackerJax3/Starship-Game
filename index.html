@@ -18,6 +18,16 @@
 			-ms-user-select: none;
 			user-select: none;
 			box-sizing: border-box;
+			touch-action: none;
+		}
+
+		html, body {
+			overscroll-behavior: none;
+			overscroll-behavior-y: none;
+			position: fixed;
+			width: 100%;
+			height: 100%;
+			background: #000;
 		}
 
 		.overlay {
@@ -185,13 +195,67 @@
 			margin-bottom: 20px;
 			letter-spacing: 1px;
 		}
+		#pause-scoreboard-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-bottom: 20px;
+			font-size: 0.95em;
+		}
+		#pause-scoreboard-table th {
+			color: rgba(255, 255, 255, 0.5);
+			font-weight: normal;
+			padding: 4px 8px;
+			text-align: left;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		}
+		#pause-scoreboard-table td {
+			padding: 6px 8px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		}
+		#pause-scoreboard-table tr.highlight td {
+			color: #ffd700;
+			font-weight: bold;
+		}
+		#pause-scoreboard-status {
+			color: rgba(255, 255, 255, 0.45);
+			font-size: 0.85em;
+			margin-bottom: 12px;
+		}
 		.pause-menu-buttons {
 			display: flex;
-			flex-direction: column;
-			gap: 10px;
+			flex-direction: row;
+			gap: 6px;
+			justify-content: center;
 		}
 		.pause-menu-buttons .btn {
-			width: 100%;
+			flex: 1;
+			margin: 0;
+			padding: 10px 4px;
+			font-size: clamp(0.6rem, 2.8vw, 0.9rem);
+			white-space: nowrap;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			text-align: center;
+		}
+
+		/* World Record banner */
+		@keyframes wr-pulse {
+			0%, 100% { transform: scale(1); opacity: 1; }
+			50% { transform: scale(1.06); opacity: 0.85; }
+		}
+		#wr-banner {
+			background: linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,140,0,0.18));
+			border: 1px solid rgba(255,215,0,0.6);
+			border-radius: 8px;
+			padding: 10px 16px;
+			margin-bottom: 16px;
+			animation: wr-pulse 1.2s ease-in-out infinite;
+		}
+		#wr-title {
+			font-size: 1.1em;
+			font-weight: bold;
+			color: #ffd700;
+			letter-spacing: 1px;
 			margin: 0;
 		}
 
@@ -248,27 +312,25 @@
 		<span></span>
 	</button>
 
-	<!-- Pause menu overlay -->
+	<!-- Pause menu overlay (burger) -->
 	<div id="overlay-pause" class="overlay" style="display:none">
 		<div class="overlay-box">
-			<h2>Menu</h2>
+			<h2>🏆 Leaderboard</h2>
+			<p id="pause-scoreboard-status">Loading scores…</p>
+			<table id="pause-scoreboard-table">
+				<thead>
+					<tr>
+						<th>#</th>
+						<th>Name</th>
+						<th>Time</th>
+					</tr>
+				</thead>
+				<tbody id="pause-scoreboard-body"></tbody>
+			</table>
 			<div class="pause-menu-buttons">
-				<button class="btn btn-primary" id="pause-resume-btn">Resume</button>
-				<button class="btn" id="pause-scoreboard-btn">Leaderboard</button>
-				<button class="btn" id="pause-restart-btn">Restart Game</button>
-				<button class="btn" id="pause-username-btn">Change Callsign</button>
-				<button class="btn" id="pause-share-btn">Share Game ▾</button>
-				<div id="share-menu">
-					<p>Share via</p>
-					<div class="share-links">
-						<a id="share-twitter" href="#" target="_blank" rel="noopener">X / Twitter</a>
-						<a id="share-reddit" href="#" target="_blank" rel="noopener">Reddit</a>
-						<a id="share-facebook" href="#" target="_blank" rel="noopener">Facebook</a>
-						<a id="share-whatsapp" href="#" target="_blank" rel="noopener">WhatsApp</a>
-						<a id="share-telegram" href="#" target="_blank" rel="noopener">Telegram</a>
-						<a id="share-copy" href="#">Copy Link</a>
-					</div>
-				</div>
+				<button class="btn" id="pause-restart-btn">Restart</button>
+				<button class="btn" id="pause-username-btn">Callsign</button>
+				<button class="btn btn-primary" id="pause-resume-btn">Continue</button>
 			</div>
 		</div>
 	</div>
@@ -287,6 +349,9 @@
 	<!-- Scoreboard overlay — shown after winning -->
 	<div id="overlay-scoreboard" class="overlay" style="display:none">
 		<div class="overlay-box">
+			<div id="wr-banner" style="display:none">
+				<p id="wr-title">🌍 NEW WORLD RECORD!</p>
+			</div>
 			<h2>🏆 Leaderboard</h2>
 			<p id="scoreboard-status">Loading scores…</p>
 			<table id="scoreboard-table">

@@ -62,10 +62,13 @@ export default class Ship extends GameObject {
         this.game.input.Escape = false;
         // create an explosion
         this.game.explosion(this.x, this.y, 50, 500);
+        this.removeEventListener('update');
         this.game.scene.remove(this);
         setTimeout(() => {
           if (this.game.checkpointBoosterLanded) {
             this.game.resetToCheckpoint();
+          } else if (this.game.checkpointInSpace) {
+            this.game.resetToSpaceCheckpoint();
           } else {
             this.game.reset();
           }
@@ -75,10 +78,13 @@ export default class Ship extends GameObject {
       if (this.y > this.game.groundLevel + 50) {
         // create an explosion
         this.game.explosion(this.x, this.y, 50, 500);
+        this.removeEventListener('update');
         this.game.scene.remove(this);
         setTimeout(() => {
           if (this.game.checkpointBoosterLanded) {
             this.game.resetToCheckpoint();
+          } else if (this.game.checkpointInSpace) {
+            this.game.resetToSpaceCheckpoint();
           } else {
             this.game.reset();
           }
