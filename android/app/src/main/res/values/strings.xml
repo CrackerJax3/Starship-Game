@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Starship Lander</string>
+    <string name="title_activity_main">Starship Lander</string>
+    <string name="package_name">com.crackerjax3.starshiplander</string>
+    <string name="custom_url_scheme">com.crackerjax3.starshiplander</string>
+</resources>

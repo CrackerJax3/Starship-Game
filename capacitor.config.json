@@ -1,0 +1,13 @@
+{
+  "appId": "com.crackerjax3.starshiplander",
+  "appName": "Starship Lander",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

@@ -141,11 +141,138 @@
 			font-size: 0.85em;
 			margin-bottom: 12px;
 		}
+
+		/* Burger menu button */
+		#burger-btn {
+			position: fixed;
+			top: 14px;
+			right: 14px;
+			z-index: 20;
+			width: 44px;
+			height: 44px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 6px;
+			background: rgba(10, 20, 40, 0.72);
+			border: 1px solid rgba(255, 255, 255, 0.18);
+			border-radius: 8px;
+			cursor: pointer;
+			padding: 0;
+			transition: background 0.15s;
+		}
+		#burger-btn:hover {
+			background: rgba(10, 20, 40, 0.92);
+		}
+		#burger-btn span {
+			display: block;
+			width: 22px;
+			height: 2px;
+			background: #fff;
+			border-radius: 2px;
+		}
+
+		/* Pause menu overlay */
+		#overlay-pause {
+			z-index: 15;
+		}
+		#overlay-pause .overlay-box {
+			min-width: 300px;
+		}
+		#overlay-pause h2 {
+			font-size: 1.4em;
+			margin-bottom: 20px;
+			letter-spacing: 1px;
+		}
+		.pause-menu-buttons {
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+		}
+		.pause-menu-buttons .btn {
+			width: 100%;
+			margin: 0;
+		}
+
+		/* Share sub-menu */
+		#share-menu {
+			margin-top: 4px;
+			display: none;
+			flex-direction: column;
+			gap: 8px;
+			background: rgba(255,255,255,0.05);
+			border: 1px solid rgba(255,255,255,0.1);
+			border-radius: 8px;
+			padding: 12px;
+		}
+		#share-menu.open {
+			display: flex;
+		}
+		#share-menu p {
+			font-size: 0.8em;
+			margin-bottom: 4px;
+			color: rgba(255,255,255,0.5);
+		}
+		.share-links {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			justify-content: center;
+		}
+		.share-links a {
+			display: inline-block;
+			padding: 7px 14px;
+			font-size: 0.88em;
+			font-family: 'Trebuchet MS', sans-serif;
+			background: rgba(255,255,255,0.10);
+			border: 1px solid rgba(255,255,255,0.2);
+			border-radius: 6px;
+			color: #fff;
+			text-decoration: none;
+			cursor: pointer;
+			transition: background 0.15s;
+		}
+		.share-links a:hover {
+			background: rgba(255,255,255,0.22);
+		}
 	</style>
 	<script type="module" src="./main.js"></script>
 </head>
 
 <body>
+	<!-- Burger menu button -->
+	<button id="burger-btn" aria-label="Menu">
+		<span></span>
+		<span></span>
+		<span></span>
+	</button>
+
+	<!-- Pause menu overlay -->
+	<div id="overlay-pause" class="overlay" style="display:none">
+		<div class="overlay-box">
+			<h2>Menu</h2>
+			<div class="pause-menu-buttons">
+				<button class="btn btn-primary" id="pause-resume-btn">Resume</button>
+				<button class="btn" id="pause-scoreboard-btn">Leaderboard</button>
+				<button class="btn" id="pause-restart-btn">Restart Game</button>
+				<button class="btn" id="pause-username-btn">Change Callsign</button>
+				<button class="btn" id="pause-share-btn">Share Game ▾</button>
+				<div id="share-menu">
+					<p>Share via</p>
+					<div class="share-links">
+						<a id="share-twitter" href="#" target="_blank" rel="noopener">X / Twitter</a>
+						<a id="share-reddit" href="#" target="_blank" rel="noopener">Reddit</a>
+						<a id="share-facebook" href="#" target="_blank" rel="noopener">Facebook</a>
+						<a id="share-whatsapp" href="#" target="_blank" rel="noopener">WhatsApp</a>
+						<a id="share-telegram" href="#" target="_blank" rel="noopener">Telegram</a>
+						<a id="share-copy" href="#">Copy Link</a>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<!-- Name entry overlay — shown on first visit -->
 	<div id="overlay-name" class="overlay">
 		<div class="overlay-box">

@@ -17,7 +17,8 @@ const ctx = canvas.getContext('2d');
 const Input = {};
 function overlayVisible() {
   return document.getElementById('overlay-name').style.display !== 'none'
-    || document.getElementById('overlay-scoreboard').style.display !== 'none';
+    || document.getElementById('overlay-scoreboard').style.display !== 'none'
+    || document.getElementById('overlay-pause').style.display !== 'none';
 }
 
 // keydown event listener (we only need the code property of the event object)
@@ -613,8 +614,18 @@ class Game {
     }
     // }
     // UI {
+    // HUD scale: 1.0 at 1200px wide, smaller on mobile, capped at 1.6 on large screens
+    const hudScale = Math.max(0.5, Math.min(1.6, canvas.width / 1200));
+    const hudPx = (base) => Math.round(base * hudScale);
+    const hudFontLg = `${hudPx(20)}px Trebuchet MS`;
+    const hudFontMd = `${hudPx(16)}px Trebuchet MS`;
+    const hudFontSm = `${hudPx(13)}px Trebuchet MS`;
+    const hudFontSmBold = `bold ${hudPx(13)}px Trebuchet MS`;
+    const hudFontXl = `${hudPx(28)}px Trebuchet MS`;
+    const hudLineH = hudPx(26);
+
     ctx.fillStyle = '#ffffff';
-    ctx.font = '2em Trebuchet MS';
+    ctx.font = hudFontXl;
     ctx.textAlign = 'center';
     if (this.started) {
       if (!this.launched) {
@@ -624,54 +635,60 @@ class Game {
       }
     } else {
       ctx.fillText('Press space or tap to start!', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
-      ctx.font = '1em Trebuchet MS';
-      ctx.fillText('On mobile, tap higher for thrust, lower half to rotate)', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4) + 30);
+      ctx.font = hudFontMd;
+      ctx.fillText('On mobile, tap higher for thrust, lower half to rotate', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4) + hudPx(30));
     }
     // timer + best time (top center) — always visible
-    ctx.font = '1.5em Trebuchet MS';
+    ctx.font = `${hudPx(22)}px Trebuchet MS`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(this.formatTime(this.missionTime), Math.floor(canvas.width / 2), 30);
-    ctx.font = '1em Trebuchet MS';
+    ctx.fillText(this.formatTime(this.missionTime), Math.floor(canvas.width / 2), hudPx(30));
+    ctx.font = hudFontMd;
     ctx.fillStyle = this.won && this.bestTime !== null && this.missionTime === this.bestTime ? '#ffd700' : 'rgba(255,255,255,0.6)';
-    ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', Math.floor(canvas.width / 2), 55);
-    // objective
-    ctx.font = '1.5em Trebuchet MS';
+    ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', Math.floor(canvas.width / 2), hudPx(54));
+    // objective + telemetry (top left)
+    ctx.font = hudFontLg;
     ctx.textAlign = 'left';
-    ctx.fillText(this.objective.text, 10, 30);
-    ctx.fillText(`Rotation: ${Math.round(this.ship.rotation) % 360}°`, 10, 55);
-    ctx.fillText(`Altitude: ${Math.abs(this.ship.y / 200).toFixed(2)}km`, 10, 80);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(this.objective.text, 10, hudLineH);
+    ctx.fillText(`Rotation: ${Math.round(this.ship.rotation) % 360}°`, 10, hudLineH * 2);
+    ctx.fillText(`Altitude: ${Math.abs(this.ship.y / 200).toFixed(2)}km`, 10, hudLineH * 3);
     // Mini leaderboard (left HUD)
     if (this.topScores.length > 0) {
       const playerName = localStorage.getItem('starshipPlayerName') || '';
-      ctx.font = 'bold 0.75em Trebuchet MS';
+      const lbStartY = hudLineH * 3 + hudPx(22);
+      const lbRightX = hudPx(220);
+      const lbRowH = hudPx(18);
+      ctx.font = hudFontSmBold;
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
       ctx.textAlign = 'left';
-      ctx.fillText('TOP 10', 10, 110);
-      ctx.font = '0.75em Trebuchet MS';
+      ctx.fillText('TOP 10', 10, lbStartY);
+      ctx.font = hudFontSm;
       this.topScores.forEach((entry, i) => {
-        const y = 128 + i * 18;
+        const y = lbStartY + lbRowH + i * lbRowH;
         ctx.fillStyle = entry.name === playerName ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.55)';
         ctx.fillText(`${i + 1}. ${entry.name}`, 10, y);
         ctx.textAlign = 'right';
-        ctx.fillText(this.formatTime(entry.time), 215, y);
+        ctx.fillText(this.formatTime(entry.time), lbRightX, y);
         ctx.textAlign = 'left';
       });
     }
     // arrow pointing to the objective
     if (this.objective.type === 'location') {
-      ctx.translate(canvas.width / 2, 110);
+      ctx.translate(canvas.width / 2, hudPx(110));
       ctx.rotate(Math.atan2(this.objective.y - this.ship.y, this.objective.x - this.ship.x) + Math.PI / 2);
       ctx.drawImage(Images.arrow_white, -Images.arrow_white.width / 2, -Images.arrow_white.height / 2);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.font = hudFontMd;
       ctx.textAlign = 'center';
-      ctx.fillText(`${(Math.sqrt((this.ship.x - this.objective.x) ** 2 + (this.ship.y - this.objective.y) ** 2) / 200).toFixed(2)}km to ${this.objective.name}`, canvas.width / 2, 180);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(`${(Math.sqrt((this.ship.x - this.objective.x) ** 2 + (this.ship.y - this.objective.y) ** 2) / 200).toFixed(2)}km to ${this.objective.name}`, canvas.width / 2, hudPx(180));
     }
     // Checkpoint saved text
     if (this.checkpointTextTimer > 0) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = `rgba(0, 255, 136, ${Math.min(this.checkpointTextTimer / 500, 1)})`;
-      ctx.font = '1.5em Trebuchet MS';
+      ctx.font = hudFontLg;
       ctx.textAlign = 'center';
       ctx.fillText('Checkpoint saved! Booster landed.', canvas.width / 2, canvas.height / 2);
     }
@@ -736,6 +753,85 @@ window.addEventListener('load', () => {
   }
 });
 
+// --- Burger / pause menu setup ---
+window.addEventListener('load', () => {
+  const pauseOverlay = document.getElementById('overlay-pause');
+  const burgerBtn = document.getElementById('burger-btn');
+  const resumeBtn = document.getElementById('pause-resume-btn');
+  const scoreboardBtn = document.getElementById('pause-scoreboard-btn');
+  const restartBtn = document.getElementById('pause-restart-btn');
+  const usernameBtn = document.getElementById('pause-username-btn');
+  const shareBtn = document.getElementById('pause-share-btn');
+  const shareMenu = document.getElementById('share-menu');
+
+  const GAME_URL = window.location.href;
+  const SHARE_TEXT = 'Can you land the Starship? Play this SpaceX Starship Lander game!';
+
+  function buildShareLinks() {
+    const enc = encodeURIComponent;
+    document.getElementById('share-twitter').href =
+      `https://twitter.com/intent/tweet?text=${enc(SHARE_TEXT)}&url=${enc(GAME_URL)}`;
+    document.getElementById('share-reddit').href =
+      `https://www.reddit.com/submit?url=${enc(GAME_URL)}&title=${enc(SHARE_TEXT)}`;
+    document.getElementById('share-facebook').href =
+      `https://www.facebook.com/sharer/sharer.php?u=${enc(GAME_URL)}`;
+    document.getElementById('share-whatsapp').href =
+      `https://api.whatsapp.com/send?text=${enc(SHARE_TEXT + ' ' + GAME_URL)}`;
+    document.getElementById('share-telegram').href =
+      `https://t.me/share/url?url=${enc(GAME_URL)}&text=${enc(SHARE_TEXT)}`;
+  }
+  buildShareLinks();
+
+  document.getElementById('share-copy').addEventListener('click', (e) => {
+    e.preventDefault();
+    navigator.clipboard.writeText(GAME_URL).then(() => {
+      const el = document.getElementById('share-copy');
+      el.textContent = 'Copied!';
+      setTimeout(() => { el.textContent = 'Copy Link'; }, 1800);
+    });
+  });
+
+  burgerBtn.addEventListener('click', () => {
+    if (pauseOverlay.style.display === 'none' || pauseOverlay.style.display === '') {
+      shareMenu.classList.remove('open');
+      pauseOverlay.style.display = 'flex';
+    } else {
+      pauseOverlay.style.display = 'none';
+    }
+  });
+
+  resumeBtn.addEventListener('click', () => {
+    pauseOverlay.style.display = 'none';
+  });
+
+  scoreboardBtn.addEventListener('click', async () => {
+    pauseOverlay.style.display = 'none';
+    const scores = await getTopScores(10);
+    showScoreboard(scores, null);
+  });
+
+  // restart wired after game is created — see below
+  window._pauseRestartBtn = restartBtn;
+
+  usernameBtn.addEventListener('click', () => {
+    pauseOverlay.style.display = 'none';
+    const nameInput = document.getElementById('player-name-input');
+    nameInput.value = localStorage.getItem('starshipPlayerName') || '';
+    document.getElementById('overlay-name').style.display = 'flex';
+    nameInput.focus();
+  });
+
+  shareBtn.addEventListener('click', () => {
+    // On mobile use Web Share API if available
+    if (navigator.share) {
+      navigator.share({ title: 'Starship Lander', text: SHARE_TEXT, url: GAME_URL }).catch(() => {});
+    } else {
+      shareMenu.classList.toggle('open');
+      shareBtn.textContent = shareMenu.classList.contains('open') ? 'Share Game ▴' : 'Share Game ▾';
+    }
+  });
+});
+
 // start game on load
 window.addEventListener('load', () => {
   // fit the canvas to the window
@@ -758,6 +854,14 @@ window.addEventListener('load', () => {
     hideScoreboard();
     game.reset();
   });
+
+  // Burger menu restart button
+  if (window._pauseRestartBtn) {
+    window._pauseRestartBtn.addEventListener('click', () => {
+      document.getElementById('overlay-pause').style.display = 'none';
+      game.reset();
+    });
+  }
   // performance control/measurement
   const MAX_FRAME = 100; // ensures that physics don't break on slow devices or when tabs are switched
   let previousFrame = 0; // stores the last time that the game loop was run
