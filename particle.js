@@ -27,6 +27,6 @@ export default class Particle extends GameObject {
     ctx.rotate(this.rotation);
     ctx.fillStyle = `rgba(${this.colour[0]},${this.colour[1]},${this.colour[2]},${this.colour[3]})`;
     ctx.fillRect(-2, -2, 4, 4);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
   }
 }

@@ -13,6 +13,7 @@ const GROUND_LEVEL = 100;
 
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
+let dpr = window.devicePixelRatio || 1;
 
 // object to store all input
 const Input = {};
@@ -48,21 +49,21 @@ let joystickRadius; // Joystick radius
 let joystickCenter = { x: 0, y: 0 }; // Center of the joystick area
 
 function setJoystickPosition() {
-  
+
    // Set joystick radius based on device type
    if (window.innerWidth < 768) { // Assuming mobile devices have a width less than 768px
-    joystickCenter.x = canvas.width / 2; // Center horizontally
-    joystickCenter.y = canvas.height - (canvas.height / 4); // Offset from the bottom by 1/4 of the screen height
+    joystickCenter.x = window.innerWidth / 2; // Center horizontally
+    joystickCenter.y = window.innerHeight - (window.innerHeight / 4); // Offset from the bottom by 1/4 of the screen height
   } else {
-    joystickCenter.x = canvas.width * .75; // Center horizontally
-    joystickCenter.y = canvas.height - (canvas.height / 4); // Offset from the bottom by 1/4 of the screen height
+    joystickCenter.x = window.innerWidth * .75; // Center horizontally
+    joystickCenter.y = window.innerHeight - (window.innerHeight / 4); // Offset from the bottom by 1/4 of the screen height
   }
 }
 
 function setJoystickRadius() {
   // Set joystick radius based on device type
   if (window.innerWidth < 768) { // Assuming mobile devices have a width less than 768px
-    joystickRadius = window.innerWidth / 3; // 50% of screen width for diameter, so radius is 1/4
+    joystickRadius = window.innerWidth / 3 * 0.7; // 30% smaller than original
   } else {
     joystickRadius = 50; // Fixed radius for PC
   }
@@ -125,7 +126,7 @@ function setPosition(e) {
       Input.joystickAngle = null;
     }
 
-    Input.thrustAmplification = ((canvas.height - Input.y) / (canvas.height - joystickCenter.y)) * 0.75; // Less sensitive
+    Input.thrustAmplification = ((window.innerHeight - Input.y) / (window.innerHeight - joystickCenter.y)) * 0.75; // Less sensitive
   }
 }
 
@@ -169,8 +170,11 @@ window.addEventListener('resize', () => {
 
 // Function to fit the canvas to the window
 function fillScreen() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
 }
 
 function img(src) {
@@ -486,7 +490,7 @@ class Game {
             starlink.addEventListener('update', function update(deltaTime2) {
               this.velocity.x += Math.cos(this.rotation * PI_ON_180) * 15 * deltaTime2;
               this.velocity.y += Math.sin(this.rotation * PI_ON_180) * 15 * deltaTime2;
-              if (Math.abs(game.ship.x - this.x) > canvas.width || Math.abs(game.ship.y - this.y) > canvas.height) {
+              if (Math.abs(game.ship.x - this.x) > window.innerWidth || Math.abs(game.ship.y - this.y) > window.innerHeight) {
                 game.scene.remove(this);
                 if (this.id === 10) {
                   game.objective.name = 'landing pad';
@@ -613,12 +617,12 @@ class Game {
     }
     // stars
     if (this.ship.y < -15000) {
-      const starCount = (canvas.width * canvas.height) / 5000;
+      const starCount = (window.innerWidth * window.innerHeight) / 5000;
       while (game.stars.length < starCount) {
-        const starY = game.ship.y + Math.random() * canvas.height - canvas.height / 2;
-        const star = new Particle(game.ship.x + Math.random() * canvas.width - canvas.width / 2, starY, Math.random() * 360, 0, [255, 255, 255, starY > -18000 ? 1 - (18000 + starY) / 3000 : 1]);
+        const starY = game.ship.y + Math.random() * window.innerHeight - window.innerHeight / 2;
+        const star = new Particle(game.ship.x + Math.random() * window.innerWidth - window.innerWidth / 2, starY, Math.random() * 360, 0, [255, 255, 255, starY > -18000 ? 1 - (18000 + starY) / 3000 : 1]);
         star.addEventListener('update', function update() {
-          if (Math.abs(game.ship.x - this.x) > canvas.width || Math.abs(game.ship.y - this.y) > canvas.height) {
+          if (Math.abs(game.ship.x - this.x) > window.innerWidth || Math.abs(game.ship.y - this.y) > window.innerHeight) {
             game.stars.splice(game.stars.indexOf(this), 1);
           }
         });
@@ -632,8 +636,8 @@ class Game {
     }
     if (this.confetti.length > 0) updateConfetti(this.confetti, deltaTime);
     // smooth camera follow
-    this.Camera.x += ((canvas.width / 2 - this.ship.x) - this.Camera.x) * this.Camera.smoothing;
-    this.Camera.y += ((canvas.height / 2 - this.ship.y) - this.Camera.y) * this.Camera.smoothing;
+    this.Camera.x += ((window.innerWidth / 2 - this.ship.x) - this.Camera.x) * this.Camera.smoothing;
+    this.Camera.y += ((window.innerHeight / 2 - this.ship.y) - this.Camera.y) * this.Camera.smoothing;
     
     // camera shake (based on the ships velocity)
     if (this.started) {
@@ -658,18 +662,18 @@ class Game {
   // render
   Render() {
     // reset the canvas transform matrix (undo any transformations/rotations)
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     // Background {
     // scale = the distance between the ship and space scaled to be from 0 to 1
     let scale = 1 - Math.abs((Math.max(this.ship.y, -20000) + 20000) / 20000);
     // set the fillStyle to gradually turn black as the scale increases to 1
     ctx.fillStyle = `rgb(${116 - 116 * scale},${162 - 162 * scale}, ${255 - 255 * scale})`;
     // fill the screen (also clearing the previous screen)
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
     // }
     // Ground {
     // if the camera can see the ground
-    if (this.Camera.y + canvas.width > this.Camera.y + GROUND_LEVEL + 150) {
+    if (this.Camera.y + window.innerWidth > this.Camera.y + GROUND_LEVEL + 150) {
       // draw the ground
       // (a darker green line)
       ctx.strokeStyle = 'rgb(10,142,47)';
@@ -678,13 +682,13 @@ class Game {
       // draw the line
       ctx.beginPath();
       ctx.moveTo(0, this.Camera.y + GROUND_LEVEL + 168);
-      ctx.lineTo(canvas.width, this.Camera.y + GROUND_LEVEL + 168);
+      ctx.lineTo(window.innerWidth, this.Camera.y + GROUND_LEVEL + 168);
       ctx.closePath();
       // display the line
       ctx.stroke();
       // (a lighter green rectangle from ground level to the bottom of the screen)
       ctx.fillStyle = 'rgb(11,176,58)';
-      ctx.fillRect(0, this.Camera.y + GROUND_LEVEL + 168, canvas.width, canvas.height - this.Camera.y + GROUND_LEVEL + 150);
+      ctx.fillRect(0, this.Camera.y + GROUND_LEVEL + 168, window.innerWidth, window.innerHeight - this.Camera.y + GROUND_LEVEL + 150);
     }
     // }
     // Stars {
@@ -701,10 +705,10 @@ class Game {
       // Earth1.png is 602px vs the original 1000px — scale up to match visual size
       const earthDrawScale = scale * (1000 / 602);
       const yOffset = Math.max((this.ship.y + 15000) / 100, -200);
-      const earthW = canvas.width * earthDrawScale;
-      const earthX = canvas.width / 2 - earthW / 2;
-      const earthY = canvas.height + yOffset;
-      const earthCX = canvas.width / 2;
+      const earthW = window.innerWidth * earthDrawScale;
+      const earthX = window.innerWidth / 2 - earthW / 2;
+      const earthY = window.innerHeight + yOffset;
+      const earthCX = window.innerWidth / 2;
       const earthCY = earthY + earthW / 2;
       const earthR = earthW / 2;
       // Atmosphere glow — fades in as the ship enters space
@@ -728,14 +732,14 @@ class Game {
     // Particles {
     const game = this;
     for (let i = 0; i < game.particles.length; i += 1) {
-      if (game.Camera.x + game.particles[i].x >= 0 && game.Camera.x + game.particles[i].x <= canvas.width && game.Camera.y + this.particles[i].y >= 0 && game.Camera.y + game.particles[i].y <= canvas.height) {
+      if (game.Camera.x + game.particles[i].x >= 0 && game.Camera.x + game.particles[i].x <= window.innerWidth && game.Camera.y + this.particles[i].y >= 0 && game.Camera.y + game.particles[i].y <= window.innerHeight) {
         game.particles[i].render(ctx, game.Camera);
       }
     }
     // }
     // UI {
     // HUD scale: 1.0 at 1200px wide, smaller on mobile, capped at 1.6 on large screens
-    const hudScale = Math.max(0.5, Math.min(1.6, canvas.width / 1200));
+    const hudScale = Math.max(0.5, Math.min(1.6, window.innerWidth / 1200));
     const hudPx = (base) => Math.round(base * hudScale);
     const hudFontLg = `${hudPx(20)}px Trebuchet MS`;
     const hudFontMd = `${hudPx(16)}px Trebuchet MS`;
@@ -749,23 +753,23 @@ class Game {
     ctx.textAlign = 'center';
     if (this.started) {
       if (!this.launched) {
-        ctx.fillText(`Launch in T${((performance.now() - this.launchTime) / 1000).toFixed(2)}`, Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
+        ctx.fillText(`Launch in T${((performance.now() - this.launchTime) / 1000).toFixed(2)}`, Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 4));
       } else if (this.won) {
-        ctx.fillText('Mission Success!', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
+        ctx.fillText('Mission Success!', Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 4));
       }
     } else {
-      ctx.fillText('Press space or tap to start!', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4));
+      ctx.fillText('Press space or tap to start!', Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 4));
       ctx.font = hudFontMd;
-      ctx.fillText('On mobile, tap higher for thrust, lower half to rotate', Math.floor(canvas.width / 2), Math.floor(canvas.height / 4) + hudPx(30));
+      ctx.fillText('On mobile, tap higher for thrust, lower half to rotate', Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 4) + hudPx(30));
     }
     // timer + best time (top center) — always visible
     ctx.font = `${hudPx(22)}px Trebuchet MS`;
     ctx.textAlign = 'center';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(this.formatTime(this.missionTime), Math.floor(canvas.width / 2), hudPx(30));
+    ctx.fillText(this.formatTime(this.missionTime), Math.floor(window.innerWidth / 2), hudPx(30));
     ctx.font = hudFontMd;
     ctx.fillStyle = this.won && this.bestTime !== null && this.missionTime === this.bestTime ? '#ffd700' : 'rgba(255,255,255,0.6)';
-    ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', Math.floor(canvas.width / 2), hudPx(54));
+    ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', Math.floor(window.innerWidth / 2), hudPx(54));
     // objective + telemetry (top left)
     ctx.font = hudFontLg;
     ctx.textAlign = 'left';
@@ -795,40 +799,40 @@ class Game {
     }
     // arrow pointing to the objective
     if (this.objective.type === 'location') {
-      ctx.translate(canvas.width / 2, hudPx(110));
+      ctx.translate(window.innerWidth / 2, hudPx(110));
       ctx.rotate(Math.atan2(this.objective.y - this.ship.y, this.objective.x - this.ship.x) + Math.PI / 2);
       ctx.drawImage(Images.arrow_white, -Images.arrow_white.width / 2, -Images.arrow_white.height / 2);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.font = hudFontMd;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(`${(Math.sqrt((this.ship.x - this.objective.x) ** 2 + (this.ship.y - this.objective.y) ** 2) / 200).toFixed(2)}km to ${this.objective.name}`, canvas.width / 2, hudPx(180));
+      ctx.fillText(`${(Math.sqrt((this.ship.x - this.objective.x) ** 2 + (this.ship.y - this.objective.y) ** 2) / 200).toFixed(2)}km to ${this.objective.name}`, window.innerWidth / 2, hudPx(180));
     }
     // Checkpoint saved text
     if (this.checkpointTextTimer > 0) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.fillStyle = `rgba(0, 255, 136, ${Math.min(this.checkpointTextTimer / 500, 1)})`;
       ctx.font = hudFontLg;
       ctx.textAlign = 'center';
-      ctx.fillText(this.checkpointText || 'Checkpoint saved!', canvas.width / 2, canvas.height / 2);
+      ctx.fillText(this.checkpointText || 'Checkpoint saved!', window.innerWidth / 2, window.innerHeight / 2);
     }
     // Invert-for-landing prompt
     if (this.invertPromptTimer > 0) {
       const alpha = Math.min(this.invertPromptTimer / 500, 1);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.textAlign = 'center';
       ctx.font = hudFontLg;
       ctx.fillStyle = `rgba(255, 80, 80, ${alpha})`;
-      ctx.fillText('INVERT FOR LANDING', canvas.width / 2, canvas.height / 2 - 40);
+      ctx.fillText('INVERT FOR LANDING', window.innerWidth / 2, window.innerHeight / 2 - 40);
       ctx.font = hudFontMd;
       ctx.fillStyle = `rgba(255, 200, 80, ${alpha})`;
-      ctx.fillText('Rotate upright ↑ to prepare', canvas.width / 2, canvas.height / 2);
+      ctx.fillText('Rotate upright ↑ to prepare', window.innerWidth / 2, window.innerHeight / 2);
     }
     // Render the joystick
     renderJoystick();
     // World-record confetti (screen-space, on top of everything)
     if (this.confetti.length > 0) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       renderConfetti(this.confetti);
     }
   }
@@ -840,7 +844,7 @@ function spawnConfetti() {
   const pieces = [];
   for (let i = 0; i < 160; i++) {
     pieces.push({
-      x: Math.random() * canvas.width,
+      x: Math.random() * window.innerWidth,
       y: -10 - Math.random() * 200,
       vx: (Math.random() - 0.5) * 180,
       vy: 120 + Math.random() * 220,
@@ -862,7 +866,7 @@ function updateConfetti(pieces, deltaTime) {
     p.y += p.vy * deltaTime;
     p.rotation += p.vr * deltaTime;
     p.vy += 60 * deltaTime; // gentle gravity
-    if (p.y > canvas.height + 20) p.alpha -= deltaTime * 2;
+    if (p.y > window.innerHeight + 20) p.alpha -= deltaTime * 2;
     if (p.alpha <= 0) pieces.splice(i, 1);
   }
 }
@@ -1004,8 +1008,11 @@ initAdMob();
 window.addEventListener('load', () => {
   // fit the canvas to the window
   function fillScreen() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
   }
   // apply
   fillScreen();

@@ -78,6 +78,6 @@ export default class GameObject {
     ctx.translate(this.x + Camera.x, this.y + Camera.y);
     ctx.rotate(this.rotation * PI_ON_180);
     ctx.drawImage(this.image, -this.image.width / 2, -this.image.height / 2);
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
   }
 }
