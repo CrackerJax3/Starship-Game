@@ -427,9 +427,14 @@ class Game {
     // Every other failure (2nd, 4th, 6th…): show rewarded ad before resetting
     if (window._deathCount % 2 === 0) {
       adPlaying = true;
+      const adStart = performance.now();
       showRewardedAd().then(() => {
         adPlaying = false;
         previousFrame = 0;
+        // Offset the mission clock so ad duration isn't counted
+        if (this.missionStartTime !== null) {
+          this.missionStartTime += performance.now() - adStart;
+        }
         this.doReset();
       });
     } else {
@@ -508,9 +513,6 @@ class Game {
             game.objective.name = 'Starlink satellites';
             game.objective.text = 'Deploying Starlink satellites...';
             game.objective.type = 'interact';
-            game.checkpointInSpace = true;
-            game.checkpointText = 'Checkpoint saved! Stage separation complete.';
-            game.checkpointTextTimer = 3000;
             vibrate([50, 30, 50, 30, 150]);
           }, 2000);
         }
@@ -536,6 +538,11 @@ class Game {
                   game.ship = game.shipBottom;
                   game.objective.controlShip = game.ship;
                   game.ship.addEventListener('update', game.ship.updateControl);
+                  // Checkpoint: Starlinks deployed, camera now on booster
+                  game.checkpointInSpace = true;
+                  game.checkpointText = 'Checkpoint saved!';
+                  game.checkpointTextTimer = 3000;
+                  vibrate([50, 30, 50, 30, 150]);
                 }
               }
             });
@@ -1113,7 +1120,7 @@ window.addEventListener('load', () => {
     await showInterstitialAd().catch(() => {});
     adPlaying = false;
     previousFrame = 0;
-    game.reset();
+    game.reset(); // reset() clears missionStartTime so no clock offset needed
   });
 
   // Share buttons
