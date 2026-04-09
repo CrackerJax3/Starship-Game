@@ -238,23 +238,6 @@
 			text-align: center;
 		}
 
-		/* Second Chance overlay */
-		#overlay-second-chance .overlay-box { max-width: 340px; }
-		#overlay-second-chance h2 { font-size: 1.6em; margin-bottom: 10px; }
-		#overlay-second-chance p  { margin-bottom: 24px; }
-		.second-chance-buttons {
-			display: flex;
-			gap: 10px;
-			justify-content: center;
-		}
-		.second-chance-buttons .btn {
-			flex: 1;
-			margin: 0;
-			font-size: clamp(0.75rem, 3vw, 1rem);
-		}
-		#sc-watch-btn { background: rgba(29,115,255,0.55); border-color: rgba(29,115,255,0.8); }
-		#sc-watch-btn:hover { background: rgba(29,115,255,0.75); }
-
 		/* Scoreboard action buttons row */
 		.scoreboard-buttons {
 			display: flex;
@@ -360,18 +343,6 @@
 				<button class="btn" id="pause-username-btn">Callsign</button>
 				<button class="btn" id="pause-share-btn">Share</button>
 				<button class="btn btn-primary" id="pause-resume-btn">Continue</button>
-			</div>
-		</div>
-	</div>
-
-	<!-- Second Chance overlay — shown on every other crash -->
-	<div id="overlay-second-chance" class="overlay" style="display:none">
-		<div class="overlay-box">
-			<h2>Continue?</h2>
-			<p>Watch a short ad to revive your ship and keep going</p>
-			<div class="second-chance-buttons">
-				<button class="btn" id="sc-watch-btn">Watch Ad 🎬</button>
-				<button class="btn" id="sc-giveup-btn">Give Up 💀</button>
 			</div>
 		</div>
 	</div>

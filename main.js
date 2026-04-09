@@ -17,14 +17,14 @@ const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
 let dpr = window.devicePixelRatio || 1;
 let appActive = true; // false when app is backgrounded
+let adPlaying = false; // true while a full-screen ad is showing
 
 // object to store all input
 const Input = {};
 function overlayVisible() {
   return document.getElementById('overlay-name').style.display !== 'none'
     || document.getElementById('overlay-scoreboard').style.display !== 'none'
-    || document.getElementById('overlay-pause').style.display !== 'none'
-    || document.getElementById('overlay-second-chance').style.display !== 'none';
+    || document.getElementById('overlay-pause').style.display !== 'none';
 }
 
 function vibrate(pattern) {
@@ -430,25 +430,17 @@ class Game {
     // Full crash — track session death count
     window._deathCount = (window._deathCount || 0) + 1;
 
-    // Offer rewarded ad on every other death (1st, 3rd, 5th…)
+    // Every other death (1st, 3rd, 5th…): immediately show rewarded ad
     if (window._deathCount % 2 === 1) {
-      const sc = document.getElementById('overlay-second-chance');
-      sc.style.display = 'flex';
-
-      document.getElementById('sc-watch-btn').onclick = async () => {
-        sc.style.display = 'none';
-        const rewarded = await showRewardedAd();
+      adPlaying = true;
+      showRewardedAd().then((rewarded) => {
+        adPlaying = false;
         if (rewarded) {
           this.revive(crashedShip);
         } else {
           this.reset();
         }
-      };
-
-      document.getElementById('sc-giveup-btn').onclick = () => {
-        sc.style.display = 'none';
-        this.reset();
-      };
+      });
     } else {
       this.reset();
     }
@@ -1124,7 +1116,9 @@ window.addEventListener('load', () => {
   // Play Again button — show interstitial after every win, then reset
   document.getElementById('close-scoreboard-btn').addEventListener('click', async () => {
     hideScoreboard();
+    adPlaying = true;
     await showInterstitialAd().catch(() => {});
+    adPlaying = false;
     game.reset();
   });
 
@@ -1150,7 +1144,7 @@ window.addEventListener('load', () => {
   let previousFrame = 0; // stores the last time that the game loop was run
   // game loop (an Immediately Invoked Function Expression that returns a function inside the `requestAnimationFrame`)
   window.requestAnimationFrame((function main(currentFrame) {
-    if (appActive) {
+    if (appActive && !adPlaying) {
       if (!overlayVisible()) {
         // update (pass in `deltaTime`: the time in seconds since the last frame, restricted by an upper bound of 100ms)
         game.Update(Math.min(currentFrame - previousFrame, MAX_FRAME) / 1000);
