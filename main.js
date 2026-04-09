@@ -6,6 +6,7 @@ import { submitScore, getTopScores } from './leaderboard.js';
 import { initAdMob, showInterstitialAd, showRewardedAd } from './admob.js';
 import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
+import { playSound, setThrust, stopAllSounds, stopAllExcept } from './sounds.js';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use
@@ -267,6 +268,8 @@ class Game {
   // takes in the x and y coordinates of the explosion, how far the particles should spread, and how many particles should be created
   explosion(x, y, spread, count) {
     vibrate([300]);
+    stopAllExcept('explosion');
+    playSound('explosion');
     const game = this;
     const fifth = count / 5; // a fifth of the particles to be created
     const fourFifths = 4 * fifth; // four fifths of the particles created
@@ -421,24 +424,23 @@ class Game {
 
   // Called by ship.js after the explosion delay (ship already removed from scene)
   onCrash() {
+    this.objective.controlShip = null; // prevent engineFiring from re-triggering thrust sound this frame
     window._deathCount = (window._deathCount || 0) + 1;
 
     // Every other failure (2nd, 4th, 6th…): reset, open pause menu, then play ad
     if (window._deathCount % 2 === 0) {
-      // 1. Freeze game silently (no UI) while ad plays
+      // 1. Freeze game silently (no UI) while ad loads — show spinner so user knows something is happening
       adPlaying = true;
-      showRewardedAd().then(() => {
-        // 2. Ad done → unfreeze, reset to checkpoint, open pause menu
+      const adOverlay = document.getElementById('overlay-ad-loading');
+      if (adOverlay) adOverlay.style.display = 'flex';
+      const finishAd = () => {
+        if (adOverlay) adOverlay.style.display = 'none';
         adPlaying = false;
         previousFrame = 0;
         this.doReset();
         window._openPauseMenu?.();
-      }).catch(() => {
-        adPlaying = false;
-        previousFrame = 0;
-        this.doReset();
-        window._openPauseMenu?.();
-      });
+      };
+      showRewardedAd().then(finishAd).catch(finishAd);
     } else {
       this.doReset();
     }
@@ -557,6 +559,7 @@ class Game {
           }
           this.starlinksReleased = true;
           vibrate([30, 20, 30, 20, 30, 20, 30, 20, 30, 20, 30]);
+          playSound('starlink');
         }
       } else if (this.objective.name === 'landing pad') {
         if (this.objective.text === 'Land the booster') {
@@ -586,10 +589,22 @@ class Game {
           }
         }
       }
-      if (this.objective.controlShip && (this.input.KeyW || this.input.ArrowUp || this.input.Space) && this.particles.length < 100) {
+      // Determine if engine is firing: keyboard OR joystick aligned within 20°
+      let engineFiring = false;
+      if (this.objective.controlShip) {
+        if (this.input.KeyW || this.input.ArrowUp || this.input.Space) {
+          engineFiring = true;
+        } else if (this.input.joystickAngle !== null && this.input.joystickAngle !== undefined) {
+          const jDiff = ((this.input.joystickAngle - this.ship.rotation + 540) % 360) - 180;
+          if (Math.abs(jDiff) <= 20) engineFiring = true;
+        }
+      }
+      setThrust(engineFiring);
+      if (engineFiring && this.particles.length < 100) {
+        const nozzleOffset = this.ship.image.width / 2;
         for (let i = 0; i < 4; i += 1) {
           const angleInRadians = (this.ship.rotation + 180) * PI_ON_180;
-          const particle = new Particle(this.ship.x + Math.cos(angleInRadians) * (220 + Math.random() * 40 - 20), this.ship.y + Math.sin(angleInRadians) * (220 + Math.ceil(Math.random() * 20)), this.ship.rotation + 180 + Math.random() * 30 - 15, 800, [140, 20, 252]);
+          const particle = new Particle(this.ship.x + Math.cos(angleInRadians) * (nozzleOffset + Math.random() * 40 - 20), this.ship.y + Math.sin(angleInRadians) * (nozzleOffset + Math.ceil(Math.random() * 20)), this.ship.rotation + 180 + Math.random() * 30 - 15, 800, [140, 20, 252]);
           particle.created_at = performance.now();
           particle.addEventListener('update', function update() {
             if (performance.now() - particle.created_at >= 100) {
@@ -629,6 +644,8 @@ class Game {
         if (this.wonAt === null) {
           this.wonAt = performance.now();
           vibrate([100, 50, 100, 50, 600]);
+          stopAllSounds();
+          playSound('victory');
           if (this.bestTime === null || this.missionTime < this.bestTime) {
             this.bestTime = this.missionTime;
             localStorage.setItem('bestTime', this.bestTime);
@@ -644,6 +661,7 @@ class Game {
               if (isWR) {
                 this.confetti = spawnConfetti();
                 vibrate([100, 50, 100, 50, 100, 50, 100, 50, 800]);
+                playSound('worldrecord');
               }
               showScoreboard(scores, finalTime, isWR);
             });
@@ -993,7 +1011,7 @@ function showScoreboard(scores, myTime, isWorldRecord) {
     scores.forEach((entry, i) => {
       const tr = document.createElement('tr');
       if (Math.round(entry.time) === Math.round(myTime)) tr.classList.add('highlight');
-      tr.innerHTML = `<td>${i + 1}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td>`;
+      tr.innerHTML = `<td>${i + 1}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td><td>${entry.flights ?? 1}</td>`;
       body.appendChild(tr);
     });
   }
@@ -1056,7 +1074,7 @@ window.addEventListener('load', () => {
           tr.classList.add('highlight');
           window._shareRank = i + 1; // store rank for share button
         }
-        tr.innerHTML = `<td>${i + 1}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td>`;
+        tr.innerHTML = `<td>${i + 1}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td><td>${entry.flights ?? 1}</td>`;
         body.appendChild(tr);
       });
     }
@@ -1120,7 +1138,10 @@ window.addEventListener('load', () => {
   document.getElementById('close-scoreboard-btn').addEventListener('click', async () => {
     hideScoreboard();
     adPlaying = true;
+    const adOverlay = document.getElementById('overlay-ad-loading');
+    if (adOverlay) adOverlay.style.display = 'flex';
     await showInterstitialAd().catch(() => {});
+    if (adOverlay) adOverlay.style.display = 'none';
     adPlaying = false;
     previousFrame = 0;
     game.reset(); // reset() clears missionStartTime so no clock offset needed

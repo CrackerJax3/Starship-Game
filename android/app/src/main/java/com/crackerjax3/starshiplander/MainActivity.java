@@ -10,5 +10,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         // Disable overscroll rubber-band effect on the game WebView
         getBridge().getWebView().setOverScrollMode(View.OVER_SCROLL_NEVER);
+        // Allow audio playback without requiring a user gesture (needed for game sounds)
+        getBridge().getWebView().getSettings().setMediaPlaybackRequiresUserGesture(false);
     }
 }

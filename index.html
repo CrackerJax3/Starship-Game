@@ -316,6 +316,13 @@
 </head>
 
 <body>
+	<!-- Ad loading overlay — shown while an ad is fetching -->
+	<div id="overlay-ad-loading" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+		<div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.75);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+		<div style="color:rgba(255,255,255,0.65);font-family:'Trebuchet MS',sans-serif;font-size:0.9em;letter-spacing:0.5px;">Loading ad…</div>
+	</div>
+	<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
 	<!-- Burger menu button -->
 	<button id="burger-btn" aria-label="Menu">
 		<span></span>
@@ -334,6 +341,7 @@
 						<th>#</th>
 						<th>Name</th>
 						<th>Time</th>
+						<th>Flights</th>
 					</tr>
 				</thead>
 				<tbody id="pause-scoreboard-body"></tbody>
@@ -372,6 +380,7 @@
 						<th>#</th>
 						<th>Name</th>
 						<th>Time</th>
+						<th>Flights</th>
 					</tr>
 				</thead>
 				<tbody id="scoreboard-body"></tbody>
