@@ -9,8 +9,8 @@ import { Capacitor } from '@capacitor/core';
 // ─── Real AdMob IDs ───────────────────────────────────────────────────────────
 const ADMOB_APP_ID       = 'ca-app-pub-8274273901549014~1769131441'; // eslint-disable-line no-unused-vars
 // Fill these in once you create the ad units in your AdMob dashboard:
-const INTERSTITIAL_AD_ID = 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX';
-const REWARDED_AD_ID     = 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX';
+const INTERSTITIAL_AD_ID = 'ca-app-pub-8274273901549014/3745588362';
+const REWARDED_AD_ID     = 'ca-app-pub-8274273901549014/7407103952';
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Google's official test IDs — safe during development
@@ -18,7 +18,7 @@ const TEST_INTERSTITIAL_ID = 'ca-app-pub-3940256099942544/1033173712';
 const TEST_REWARDED_ID     = 'ca-app-pub-3940256099942544/5224354917';
 
 // Flip to false once you have a real interstitial ad unit ID
-const USE_TEST_ADS = true;
+const USE_TEST_ADS = false;
 
 // ─── Initialise ──────────────────────────────────────────────────────────────
 export async function initAdMob() {
