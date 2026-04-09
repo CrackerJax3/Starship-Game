@@ -3,7 +3,7 @@ import GameObject from './gameobject.js';
 import Particle from './particle.js';
 import Ship from './ship.js';
 import { submitScore, getTopScores } from './leaderboard.js';
-import { initAdMob, showRewardedAd, showInterstitialAd } from './admob.js';
+import { initAdMob, showInterstitialAd } from './admob.js';
 import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
 
@@ -23,8 +23,7 @@ const Input = {};
 function overlayVisible() {
   return document.getElementById('overlay-name').style.display !== 'none'
     || document.getElementById('overlay-scoreboard').style.display !== 'none'
-    || document.getElementById('overlay-pause').style.display !== 'none'
-    || document.getElementById('overlay-second-chance').style.display !== 'none';
+    || document.getElementById('overlay-pause').style.display !== 'none';
 }
 
 function vibrate(pattern) {
@@ -224,7 +223,6 @@ class Game {
     this.confetti = []; // world-record confetti pieces
     this.particles = []; // array to store all particles created
     this.stars = []; // WIP
-    this.secondChanceUsed = false; // only one second chance per run
     // object to store info on the current objective
     this.objective = {
       name: 'space', // the current objectives name
@@ -335,7 +333,6 @@ class Game {
     this.descentAlerts = { 40: false, 30: false, 20: false };
     this.invertPromptTimer = 0;
     this.confetti = [];
-    this.secondChanceUsed = false;
     // reset the default objective
     this.objective.name = 'space';
     this.objective.text = 'Get to orbit!';
@@ -418,67 +415,6 @@ class Game {
     this.won = false;
     this.descentAlerts = { 40: false, 30: false, 20: false };
     this.invertPromptTimer = 0;
-  }
-
-  // Called by ship.js when a crash happens (after the explosion delay)
-  onCrash(crashedShip) {
-    crashedShip.removeEventListener('update');
-    this.scene.remove(crashedShip);
-
-    // Checkpoint resets don't offer second chance — player already has a save
-    if (this.checkpointBoosterLanded) {
-      this.resetToCheckpoint();
-      return;
-    }
-    if (this.checkpointInSpace) {
-      this.resetToSpaceCheckpoint();
-      return;
-    }
-
-    // Full crash — track death count (session-level)
-    window._deathCount = (window._deathCount || 0) + 1;
-
-    // Offer second chance once per run
-    if (!this.secondChanceUsed) {
-      this.secondChanceUsed = true;
-      const sc = document.getElementById('overlay-second-chance');
-      sc.style.display = 'flex';
-
-      document.getElementById('sc-watch-btn').onclick = async () => {
-        sc.style.display = 'none';
-        const rewarded = await showRewardedAd();
-        if (rewarded) {
-          this.revive(crashedShip);
-        } else {
-          this.doFullReset();
-        }
-      };
-
-      document.getElementById('sc-giveup-btn').onclick = () => {
-        sc.style.display = 'none';
-        this.doFullReset();
-      };
-    } else {
-      this.doFullReset();
-    }
-  }
-
-  // Full reset, with an interstitial every 3rd death
-  doFullReset() {
-    const showAd = window._deathCount % 3 === 0;
-    this.reset();
-    if (showAd) {
-      showInterstitialAd().catch(() => {});
-    }
-  }
-
-  // Revive the crashed ship in-place with zeroed velocity
-  revive(crashedShip) {
-    crashedShip.velocity.x = 0;
-    crashedShip.velocity.y = 0;
-    crashedShip.velocity.rotation = 0;
-    crashedShip.addEventListener('update', crashedShip.updateControl);
-    this.scene.add(crashedShip);
   }
 
   loadLeaderboard() {
@@ -1139,9 +1075,10 @@ window.addEventListener('load', () => {
 
   const game = new Game();
 
-  // Play Again button resets the game and hides the scoreboard
-  document.getElementById('close-scoreboard-btn').addEventListener('click', () => {
+  // Play Again button — show interstitial after every win, then reset
+  document.getElementById('close-scoreboard-btn').addEventListener('click', async () => {
     hideScoreboard();
+    await showInterstitialAd().catch(() => {});
     game.reset();
   });
 
