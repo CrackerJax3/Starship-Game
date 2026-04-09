@@ -56,12 +56,17 @@ export function showRewardedAd() {
 
   return new Promise(async (resolve) => {
     let settled = false;
-    const done = (val) => { if (!settled) { settled = true; resolve(val); } };
     const listeners = [];
+    const done = (val) => {
+      if (settled) return;
+      settled = true;
+      listeners.forEach(l => l.remove?.());
+      resolve(val);
+    };
 
     try {
-      listeners.push(await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => done(true)));
-      listeners.push(await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => done(false)));
+      listeners.push(await AdMob.addListener(RewardAdPluginEvents.Rewarded,     () => done(true)));
+      listeners.push(await AdMob.addListener(RewardAdPluginEvents.Dismissed,    () => done(false)));
       listeners.push(await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => done(false)));
       listeners.push(await AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => done(false)));
 
@@ -72,8 +77,6 @@ export function showRewardedAd() {
       await AdMob.showRewardVideoAd();
     } catch {
       done(false);
-    } finally {
-      Promise.resolve().then(() => listeners.forEach(l => l.remove?.()));
     }
   });
 }
@@ -84,12 +87,19 @@ export function showInterstitialAd() {
   if (!Capacitor.isNativePlatform()) return Promise.resolve();
 
   return new Promise(async (resolve) => {
+    let settled = false;
     const listeners = [];
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      listeners.forEach(l => l.remove?.());
+      resolve();
+    };
 
     try {
-      listeners.push(await AdMob.addListener(InterstitialAdPluginEvents.Dismissed, resolve));
-      listeners.push(await AdMob.addListener(InterstitialAdPluginEvents.FailedToLoad, resolve));
-      listeners.push(await AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, resolve));
+      listeners.push(await AdMob.addListener(InterstitialAdPluginEvents.Dismissed,    done));
+      listeners.push(await AdMob.addListener(InterstitialAdPluginEvents.FailedToLoad, done));
+      listeners.push(await AdMob.addListener(InterstitialAdPluginEvents.FailedToShow, done));
 
       await AdMob.prepareInterstitial({
         adId: USE_TEST_ADS ? TEST_INTERSTITIAL_ID : INTERSTITIAL_AD_ID,
@@ -97,9 +107,7 @@ export function showInterstitialAd() {
       });
       await AdMob.showInterstitial();
     } catch {
-      resolve();
-    } finally {
-      Promise.resolve().then(() => listeners.forEach(l => l.remove?.()));
+      done();
     }
   });
 }
