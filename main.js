@@ -420,23 +420,16 @@ class Game {
   }
 
   // Called by ship.js after the explosion delay (ship already removed from scene)
-  onCrash(crashedShip) {
-    // Track every failure (including checkpoint resets)
+  onCrash() {
     window._deathCount = (window._deathCount || 0) + 1;
 
-    // Every other failure (2nd, 4th, 6th…): show rewarded ad before resetting
+    // Every other failure (2nd, 4th, 6th…): reset, open pause menu, then play ad
     if (window._deathCount % 2 === 0) {
-      adPlaying = true;
-      const adStart = performance.now();
-      showRewardedAd().then(() => {
-        adPlaying = false;
-        previousFrame = 0;
-        // Offset the mission clock so ad duration isn't counted
-        if (this.missionStartTime !== null) {
-          this.missionStartTime += performance.now() - adStart;
-        }
-        this.doReset();
-      });
+      this.doReset();
+      // Open pause menu — this pauses the game loop via overlayVisible()
+      window._openPauseMenu?.();
+      // Fire ad on top; when dismissed, pause menu is still open for manual resume
+      showRewardedAd().catch(() => {});
     } else {
       this.doReset();
     }
@@ -1080,6 +1073,7 @@ window.addEventListener('load', () => {
 
   // restart wired after game is created — see below
   window._pauseRestartBtn = restartBtn;
+  window._openPauseMenu = openPauseMenu;
 
   usernameBtn.addEventListener('click', () => {
     pauseOverlay.style.display = 'none';
