@@ -427,14 +427,10 @@ class Game {
     // Every other failure (2nd, 4th, 6th…): show rewarded ad before resetting
     if (window._deathCount % 2 === 0) {
       adPlaying = true;
-      showRewardedAd().then((rewarded) => {
+      showRewardedAd().then(() => {
         adPlaying = false;
         previousFrame = 0;
-        if (rewarded) {
-          this.revive(crashedShip);
-        } else {
-          this.doReset();
-        }
+        this.doReset();
       });
     } else {
       this.doReset();
@@ -450,15 +446,6 @@ class Game {
     } else {
       this.reset();
     }
-  }
-
-  // Revive the crashed ship in-place with zeroed velocity
-  revive(crashedShip) {
-    crashedShip.velocity.x = 0;
-    crashedShip.velocity.y = 0;
-    crashedShip.velocity.rotation = 0;
-    crashedShip.addEventListener('update', crashedShip.updateControl);
-    this.scene.add(crashedShip);
   }
 
   loadLeaderboard() {
