@@ -5,6 +5,7 @@ import Ship from './ship.js';
 import { submitScore, getTopScores } from './leaderboard.js';
 import { initAdMob } from './admob.js';
 import { Share } from '@capacitor/share';
+import { App } from '@capacitor/app';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use
@@ -15,6 +16,7 @@ const GROUND_LEVEL = 100;
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
 let dpr = window.devicePixelRatio || 1;
+let appActive = true; // false when app is backgrounded
 
 // object to store all input
 const Input = {};
@@ -1090,19 +1092,27 @@ window.addEventListener('load', () => {
       game.reset();
     });
   }
+  // Pause/resume game loop when app is backgrounded/foregrounded
+  App.addListener('appStateChange', ({ isActive }) => {
+    appActive = isActive;
+    if (isActive) previousFrame = 0; // reset so deltaTime doesn't spike on resume
+  });
+
   // performance control/measurement
   const MAX_FRAME = 100; // ensures that physics don't break on slow devices or when tabs are switched
   let previousFrame = 0; // stores the last time that the game loop was run
   // game loop (an Immediately Invoked Function Expression that returns a function inside the `requestAnimationFrame`)
   window.requestAnimationFrame((function main(currentFrame) {
-    if (!overlayVisible()) {
-      // update (pass in `deltaTime`: the time in seconds since the last frame, restricted by an upper bound of 100ms)
-      game.Update(Math.min(currentFrame - previousFrame, MAX_FRAME) / 1000);
+    if (appActive) {
+      if (!overlayVisible()) {
+        // update (pass in `deltaTime`: the time in seconds since the last frame, restricted by an upper bound of 100ms)
+        game.Update(Math.min(currentFrame - previousFrame, MAX_FRAME) / 1000);
+      }
+      // render
+      game.Render();
+      // always advance previousFrame so deltaTime doesn't spike after resuming from pause
+      previousFrame = currentFrame;
     }
-    // render
-    game.Render();
-    // always advance previousFrame so deltaTime doesn't spike after resuming from pause
-    previousFrame = currentFrame;
     // indirect recursion
     window.requestAnimationFrame(main);
   }));
