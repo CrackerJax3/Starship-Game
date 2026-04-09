@@ -16,8 +16,9 @@ const GROUND_LEVEL = 100;
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
 let dpr = window.devicePixelRatio || 1;
-let appActive = true; // false when app is backgrounded
-let adPlaying = false; // true while a full-screen ad is showing
+let appActive = true;    // false when app is backgrounded
+let adPlaying = false;   // true while a full-screen ad is showing
+let previousFrame = 0;   // last rAF timestamp — hoisted so ads can reset it
 
 // object to store all input
 const Input = {};
@@ -435,6 +436,7 @@ class Game {
       adPlaying = true;
       showRewardedAd().then((rewarded) => {
         adPlaying = false;
+        previousFrame = 0; // reset so first frame back has deltaTime of 0, not a giant spike
         if (rewarded) {
           this.revive(crashedShip);
         } else {
@@ -1119,6 +1121,7 @@ window.addEventListener('load', () => {
     adPlaying = true;
     await showInterstitialAd().catch(() => {});
     adPlaying = false;
+    previousFrame = 0;
     game.reset();
   });
 
@@ -1141,7 +1144,6 @@ window.addEventListener('load', () => {
 
   // performance control/measurement
   const MAX_FRAME = 100; // ensures that physics don't break on slow devices or when tabs are switched
-  let previousFrame = 0; // stores the last time that the game loop was run
   // game loop (an Immediately Invoked Function Expression that returns a function inside the `requestAnimationFrame`)
   window.requestAnimationFrame((function main(currentFrame) {
     if (appActive && !adPlaying) {
