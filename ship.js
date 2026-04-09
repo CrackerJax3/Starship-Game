@@ -63,14 +63,14 @@ export default class Ship extends GameObject {
         this.game.explosion(this.x, this.y, 50, 500);
         this.removeEventListener('update');
         this.game.scene.remove(this);
-        setTimeout(() => this.game.onCrash(this), 1000);
+        this.game.onCrash(this);
       }
       // if the ship hits the ground
       if (this.y > this.game.groundLevel + 50) {
         this.game.explosion(this.x, this.y, 50, 500);
         this.removeEventListener('update');
         this.game.scene.remove(this);
-        setTimeout(() => this.game.onCrash(this), 1000);
+        this.game.onCrash(this);
       }
       // if the R key is pressed
       if (this.game.input.KeyR) {
