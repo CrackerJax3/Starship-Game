@@ -425,10 +425,20 @@ class Game {
 
     // Every other failure (2nd, 4th, 6th…): reset, open pause menu, then play ad
     if (window._deathCount % 2 === 0) {
-      // Open pause menu immediately — pauses game loop via overlayVisible()
-      window._openPauseMenu?.();
-      // Ad plays over the pause menu; checkpoint resets after ad closes
-      showRewardedAd().then(() => this.doReset()).catch(() => this.doReset());
+      // 1. Freeze game silently (no UI) while ad plays
+      adPlaying = true;
+      showRewardedAd().then(() => {
+        // 2. Ad done → unfreeze, reset to checkpoint, open pause menu
+        adPlaying = false;
+        previousFrame = 0;
+        this.doReset();
+        window._openPauseMenu?.();
+      }).catch(() => {
+        adPlaying = false;
+        previousFrame = 0;
+        this.doReset();
+        window._openPauseMenu?.();
+      });
     } else {
       this.doReset();
     }
