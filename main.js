@@ -419,30 +419,34 @@ class Game {
     this.invertPromptTimer = 0;
   }
 
-  // Called by ship.js after the explosion delay
+  // Called by ship.js after the explosion delay (ship already removed from scene)
   onCrash(crashedShip) {
-    crashedShip.removeEventListener('update');
-    this.scene.remove(crashedShip);
-
-    // Checkpoint resets skip the ad flow — player already has a save
-    if (this.checkpointBoosterLanded) { this.resetToCheckpoint(); return; }
-    if (this.checkpointInSpace)       { this.resetToSpaceCheckpoint(); return; }
-
-    // Full crash — track session death count
+    // Track every failure (including checkpoint resets)
     window._deathCount = (window._deathCount || 0) + 1;
 
-    // Every other death (1st, 3rd, 5th…): immediately show rewarded ad
-    if (window._deathCount % 2 === 1) {
+    // Every other failure (2nd, 4th, 6th…): show rewarded ad before resetting
+    if (window._deathCount % 2 === 0) {
       adPlaying = true;
       showRewardedAd().then((rewarded) => {
         adPlaying = false;
-        previousFrame = 0; // reset so first frame back has deltaTime of 0, not a giant spike
+        previousFrame = 0;
         if (rewarded) {
           this.revive(crashedShip);
         } else {
-          this.reset();
+          this.doReset();
         }
       });
+    } else {
+      this.doReset();
+    }
+  }
+
+  // Resolves the correct reset based on checkpoint state
+  doReset() {
+    if (this.checkpointBoosterLanded) {
+      this.resetToCheckpoint();
+    } else if (this.checkpointInSpace) {
+      this.resetToSpaceCheckpoint();
     } else {
       this.reset();
     }
