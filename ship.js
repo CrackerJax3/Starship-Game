@@ -61,32 +61,12 @@ export default class Ship extends GameObject {
         // force the player to release Escape to prevent self destruct on hold
         this.game.input.Escape = false;
         this.game.explosion(this.x, this.y, 50, 500);
-        this.removeEventListener('update');
-        this.game.scene.remove(this);
-        setTimeout(() => {
-          if (this.game.checkpointBoosterLanded) {
-            this.game.resetToCheckpoint();
-          } else if (this.game.checkpointInSpace) {
-            this.game.resetToSpaceCheckpoint();
-          } else {
-            this.game.reset();
-          }
-        }, 1000);
+        setTimeout(() => this.game.onCrash(this), 1000);
       }
       // if the ship hits the ground
       if (this.y > this.game.groundLevel + 50) {
         this.game.explosion(this.x, this.y, 50, 500);
-        this.removeEventListener('update');
-        this.game.scene.remove(this);
-        setTimeout(() => {
-          if (this.game.checkpointBoosterLanded) {
-            this.game.resetToCheckpoint();
-          } else if (this.game.checkpointInSpace) {
-            this.game.resetToSpaceCheckpoint();
-          } else {
-            this.game.reset();
-          }
-        }, 1000);
+        setTimeout(() => this.game.onCrash(this), 1000);
       }
       // if the R key is pressed
       if (this.game.input.KeyR) {

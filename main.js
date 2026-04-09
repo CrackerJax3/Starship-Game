@@ -3,7 +3,7 @@ import GameObject from './gameobject.js';
 import Particle from './particle.js';
 import Ship from './ship.js';
 import { submitScore, getTopScores } from './leaderboard.js';
-import { initAdMob, showInterstitialAd } from './admob.js';
+import { initAdMob, showInterstitialAd, showRewardedAd } from './admob.js';
 import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
 
@@ -23,7 +23,8 @@ const Input = {};
 function overlayVisible() {
   return document.getElementById('overlay-name').style.display !== 'none'
     || document.getElementById('overlay-scoreboard').style.display !== 'none'
-    || document.getElementById('overlay-pause').style.display !== 'none';
+    || document.getElementById('overlay-pause').style.display !== 'none'
+    || document.getElementById('overlay-second-chance').style.display !== 'none';
 }
 
 function vibrate(pattern) {
@@ -415,6 +416,51 @@ class Game {
     this.won = false;
     this.descentAlerts = { 40: false, 30: false, 20: false };
     this.invertPromptTimer = 0;
+  }
+
+  // Called by ship.js after the explosion delay
+  onCrash(crashedShip) {
+    crashedShip.removeEventListener('update');
+    this.scene.remove(crashedShip);
+
+    // Checkpoint resets skip the ad flow — player already has a save
+    if (this.checkpointBoosterLanded) { this.resetToCheckpoint(); return; }
+    if (this.checkpointInSpace)       { this.resetToSpaceCheckpoint(); return; }
+
+    // Full crash — track session death count
+    window._deathCount = (window._deathCount || 0) + 1;
+
+    // Offer rewarded ad on every other death (1st, 3rd, 5th…)
+    if (window._deathCount % 2 === 1) {
+      const sc = document.getElementById('overlay-second-chance');
+      sc.style.display = 'flex';
+
+      document.getElementById('sc-watch-btn').onclick = async () => {
+        sc.style.display = 'none';
+        const rewarded = await showRewardedAd();
+        if (rewarded) {
+          this.revive(crashedShip);
+        } else {
+          this.reset();
+        }
+      };
+
+      document.getElementById('sc-giveup-btn').onclick = () => {
+        sc.style.display = 'none';
+        this.reset();
+      };
+    } else {
+      this.reset();
+    }
+  }
+
+  // Revive the crashed ship in-place with zeroed velocity
+  revive(crashedShip) {
+    crashedShip.velocity.x = 0;
+    crashedShip.velocity.y = 0;
+    crashedShip.velocity.rotation = 0;
+    crashedShip.addEventListener('update', crashedShip.updateControl);
+    this.scene.add(crashedShip);
   }
 
   loadLeaderboard() {

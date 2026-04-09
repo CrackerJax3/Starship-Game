@@ -2,17 +2,20 @@ import {
   AdMob,
   AdmobConsentStatus,
   InterstitialAdPluginEvents,
+  RewardAdPluginEvents,
 } from '@capacitor-community/admob';
 import { Capacitor } from '@capacitor/core';
 
 // ─── Real AdMob IDs ───────────────────────────────────────────────────────────
 const ADMOB_APP_ID       = 'ca-app-pub-8274273901549014~1769131441'; // eslint-disable-line no-unused-vars
-// Fill this in once you create the Interstitial ad unit in your AdMob dashboard:
+// Fill these in once you create the ad units in your AdMob dashboard:
 const INTERSTITIAL_AD_ID = 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX';
+const REWARDED_AD_ID     = 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX';
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Google's official test interstitial ID — safe during development
+// Google's official test IDs — safe during development
 const TEST_INTERSTITIAL_ID = 'ca-app-pub-3940256099942544/1033173712';
+const TEST_REWARDED_ID     = 'ca-app-pub-3940256099942544/5224354917';
 
 // Flip to false once you have a real interstitial ad unit ID
 const USE_TEST_ADS = true;
@@ -44,6 +47,35 @@ export async function initAdMob() {
   } catch (e) {
     console.warn('AdMob consent error (non-fatal):', e);
   }
+}
+
+// ─── Rewarded ad ─────────────────────────────────────────────────────────────
+// Returns true if the user earned the reward, false otherwise.
+export function showRewardedAd() {
+  if (!Capacitor.isNativePlatform()) return Promise.resolve(false);
+
+  return new Promise(async (resolve) => {
+    let settled = false;
+    const done = (val) => { if (!settled) { settled = true; resolve(val); } };
+    const listeners = [];
+
+    try {
+      listeners.push(await AdMob.addListener(RewardAdPluginEvents.Rewarded, () => done(true)));
+      listeners.push(await AdMob.addListener(RewardAdPluginEvents.Dismissed, () => done(false)));
+      listeners.push(await AdMob.addListener(RewardAdPluginEvents.FailedToLoad, () => done(false)));
+      listeners.push(await AdMob.addListener(RewardAdPluginEvents.FailedToShow, () => done(false)));
+
+      await AdMob.prepareRewardVideoAd({
+        adId: USE_TEST_ADS ? TEST_REWARDED_ID : REWARDED_AD_ID,
+        isTesting: USE_TEST_ADS,
+      });
+      await AdMob.showRewardVideoAd();
+    } catch {
+      done(false);
+    } finally {
+      Promise.resolve().then(() => listeners.forEach(l => l.remove?.()));
+    }
+  });
 }
 
 // ─── Interstitial ad ─────────────────────────────────────────────────────────
