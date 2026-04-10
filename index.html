@@ -330,6 +330,18 @@
 		<span></span>
 	</button>
 
+	<!-- Continue prompt — shown on every 2nd crash -->
+	<div id="overlay-continue" class="overlay" style="display:none">
+		<div class="overlay-box">
+			<h2>Continue?</h2>
+			<p>Watch a short ad to continue from your last checkpoint.</p>
+			<div style="display:flex;gap:10px;justify-content:center;">
+				<button class="btn" id="continue-skip-btn">Skip</button>
+				<button class="btn btn-primary" id="continue-watch-btn">Watch Ad</button>
+			</div>
+		</div>
+	</div>
+
 	<!-- Pause menu overlay (burger) -->
 	<div id="overlay-pause" class="overlay" style="display:none">
 		<div class="overlay-box">

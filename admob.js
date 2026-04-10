@@ -18,7 +18,7 @@ const TEST_INTERSTITIAL_ID = 'ca-app-pub-3940256099942544/1033173712';
 const TEST_REWARDED_ID     = 'ca-app-pub-3940256099942544/5224354917';
 
 // Flip to false once you have a real interstitial ad unit ID
-const USE_TEST_ADS = false;
+const USE_TEST_ADS = true;
 
 // ─── Initialise ──────────────────────────────────────────────────────────────
 export async function initAdMob() {

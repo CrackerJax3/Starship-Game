@@ -26,7 +26,8 @@ const Input = {};
 function overlayVisible() {
   return document.getElementById('overlay-name').style.display !== 'none'
     || document.getElementById('overlay-scoreboard').style.display !== 'none'
-    || document.getElementById('overlay-pause').style.display !== 'none';
+    || document.getElementById('overlay-pause').style.display !== 'none'
+    || document.getElementById('overlay-continue').style.display !== 'none';
 }
 
 function vibrate(pattern) {
@@ -427,20 +428,29 @@ class Game {
     this.objective.controlShip = null; // prevent engineFiring from re-triggering thrust sound this frame
     window._deathCount = (window._deathCount || 0) + 1;
 
-    // Every other failure (2nd, 4th, 6th…): reset, open pause menu, then play ad
+    // Every other failure (2nd, 4th, 6th…): prompt user to watch ad
     if (window._deathCount % 2 === 0) {
-      // 1. Freeze game silently (no UI) while ad loads — show spinner so user knows something is happening
-      adPlaying = true;
-      const adOverlay = document.getElementById('overlay-ad-loading');
-      if (adOverlay) adOverlay.style.display = 'flex';
-      const finishAd = () => {
-        if (adOverlay) adOverlay.style.display = 'none';
-        adPlaying = false;
-        previousFrame = 0;
-        this.doReset();
-        window._openPauseMenu?.();
+      const continueOverlay = document.getElementById('overlay-continue');
+      if (continueOverlay) continueOverlay.style.display = 'flex';
+      // Callbacks picked up by the Watch Ad / Skip buttons wired at load time
+      window._continueWatchAd = () => {
+        if (continueOverlay) continueOverlay.style.display = 'none';
+        adPlaying = true;
+        const adOverlay = document.getElementById('overlay-ad-loading');
+        if (adOverlay) adOverlay.style.display = 'flex';
+        const finishAd = () => {
+          if (adOverlay) adOverlay.style.display = 'none';
+          adPlaying = false;
+          previousFrame = 0;
+          this.doReset();
+          window._openPauseMenu?.();
+        };
+        showRewardedAd().then(finishAd).catch(finishAd);
       };
-      showRewardedAd().then(finishAd).catch(finishAd);
+      window._continueSkip = () => {
+        if (continueOverlay) continueOverlay.style.display = 'none';
+        this.doReset();
+      };
     } else {
       this.doReset();
     }
@@ -1038,6 +1048,9 @@ window.addEventListener('load', () => {
 
   playBtn.addEventListener('click', confirmName);
   nameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') confirmName(); });
+
+  document.getElementById('continue-watch-btn').addEventListener('click', () => window._continueWatchAd?.());
+  document.getElementById('continue-skip-btn').addEventListener('click',  () => window._continueSkip?.());
   // Play Again wired up in the game load listener below
 
   const saved = localStorage.getItem('starshipPlayerName');
