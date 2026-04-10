@@ -1,0 +1,295 @@
+═══════════════════════════════════════════════════════════════
+  GOOGLE PLAY STORE PUBLISHING CHECKLIST — Starship Lander
+═══════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. GOOGLE PLAY DEVELOPER ACCOUNT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Create a Google Play Developer account at:
+    https://play.google.com/console
+
+[ ] Pay one-time $25 registration fee (credit/debit card)
+
+[ ] Verify your identity (Google may ask for government ID)
+
+[ ] Set up a payments profile for any paid apps or in-app purchases
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. APP ASSETS YOU NEED TO CREATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] App Icon
+    - 512 × 512 px, PNG, 32-bit colour with alpha
+    - No rounded corners (Play Store applies rounding automatically)
+    - No transparent background (use a solid fill)
+
+[ ] Feature Graphic
+    - 1024 × 500 px, JPG or PNG (no alpha)
+    - Shown at top of Play Store listing
+    - Should look good as a banner/hero image
+
+[ ] Screenshots (REQUIRED — minimum 2 per device type you support)
+    - Phone: at least 2 screenshots
+      Minimum size: 320px on shortest side, 3840px on longest
+      Aspect ratio: between 16:9 and 9:16
+      PNG or JPG
+    - Tablet (optional but recommended for broader reach)
+    - Take screenshots directly on the phone/emulator
+
+[ ] Short Description
+    - Max 80 characters
+    - Example: "Land SpaceX's Starship and booster on the catch arms!"
+
+[ ] Full Description
+    - Max 4000 characters
+    - Describe gameplay, features, controls
+    - Include keywords naturally (SpaceX, Starship, rocket, landing, simulator)
+    - Mention global leaderboard
+
+[ ] App Title
+    - Max 30 characters
+    - Example: "Starship Lander"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. BUILD — SIGNED RELEASE APK / AAB
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Create a keystore file (DO THIS ONCE — keep it safe forever)
+    Run in terminal:
+      keytool -genkey -v -keystore starship-release.jks \
+        -alias starship -keyalg RSA -keysize 2048 -validity 10000
+
+    Store the keystore file and passwords somewhere very safe.
+    Losing it means you can never update the app on the same listing.
+
+[ ] Configure signing in android/app/build.gradle:
+    Add under android { ... }:
+
+      signingConfigs {
+          release {
+              storeFile file('path/to/starship-release.jks')
+              storePassword 'YOUR_STORE_PASSWORD'
+              keyAlias 'starship'
+              keyPassword 'YOUR_KEY_PASSWORD'
+          }
+      }
+      buildTypes {
+          release {
+              signingConfig signingConfigs.release
+          }
+      }
+
+[ ] Build the release AAB (preferred over APK for Play Store):
+      cd android && ./gradlew bundleRelease
+
+    Output: android/app/build/outputs/bundle/release/app-release.aab
+
+[ ] Or build signed APK:
+      cd android && ./gradlew assembleRelease
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4. PRIVACY POLICY (REQUIRED — you use AdMob + internet)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Google requires a privacy policy because your app:
+  - Uses Google AdMob (collects advertising data)
+  - Requests AD_ID permission
+  - Submits player names and scores to Firebase
+
+[ ] Host a privacy policy at a public URL (options):
+    - Create a free page at https://www.privacypolicygenerator.info
+    - Or use https://app.privacypolicies.com
+    - Or host a simple HTML file on GitHub Pages
+
+[ ] Your privacy policy MUST mention:
+    - What data you collect (player name, score, device ad ID)
+    - Why you collect it (leaderboard, advertising)
+    - Third-party services used:
+        * Google AdMob: https://policies.google.com/privacy
+        * Google Firebase: https://firebase.google.com/support/privacy
+    - How users can request data deletion (provide your email)
+    - That you do not sell personal data
+    - Children's data section (see Section 6 below)
+
+[ ] Enter the privacy policy URL in the Play Console under:
+    App content → Privacy policy
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. CONTENT RATING (REQUIRED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Complete the IARC content rating questionnaire in Play Console
+    under: App content → Content rating
+
+    Expected answers for this app:
+    - No violence, blood, sexual content, or drugs → Everyone (E)
+    - Contains ads → Yes (AdMob)
+    - No user-generated content shared publicly
+      NOTE: The leaderboard does show player-chosen callsigns publicly.
+      You may need to tick "User-generated content" depending on how
+      Google interprets it.
+
+    Likely rating: Everyone (E) — suitable for all ages
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  6. CHILDREN & FAMILIES POLICY (IMPORTANT — read carefully)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Because your app is rated Everyone and may appeal to children:
+
+[ ] Decide: is this app directed at children under 13?
+
+    OPTION A — NOT directed at children (recommended for you):
+    - In Play Console: App content → Target audience → select "13 and over"
+    - You must still have a privacy policy
+    - AdMob will serve standard (non-child-directed) ads
+    - Easier path, fewer restrictions
+
+    OPTION B — Directed at children / Designed for Families program:
+    - Far more restrictive ad requirements (no behavioural ads)
+    - Must use only pre-approved ad SDKs
+    - Much harder to monetise — avoid this unless the app is
+      specifically designed for young children
+
+    RECOMMENDATION: Select "13 and over" as your target audience.
+    The game content (rocket science, leaderboard, controls) is
+    naturally suited for teens and adults.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  7. ADS DECLARATION (REQUIRED — you use AdMob)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] In Play Console: App content → Ads
+    Declare that your app contains ads → Yes
+
+[ ] The "Contains ads" badge will appear on your Play Store listing
+    automatically — this is required and expected
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  8. DATA SAFETY SECTION (REQUIRED)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] In Play Console: App content → Data safety
+    Fill in the form based on what your app actually does:
+
+    Data collected:
+    ┌─────────────────────┬───────────────┬──────────────────────────────┐
+    │ Data type           │ Shared?       │ Purpose                      │
+    ├─────────────────────┼───────────────┼──────────────────────────────┤
+    │ Name (callsign)     │ Yes (public)  │ Leaderboard display          │
+    │ App interactions    │ Yes (AdMob)   │ Advertising                  │
+    │ Device/other IDs    │ Yes (AdMob)   │ Advertising (AD_ID)          │
+    │ Crash logs          │ No            │ App functionality            │
+    └─────────────────────┴───────────────┴──────────────────────────────┘
+
+    Is data encrypted in transit? → Yes (HTTPS / Firebase / AdMob)
+    Can users request deletion? → Yes (provide your email in policy)
+    Is data collection required? → No (callsign is optional)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  9. INTELLECTUAL PROPERTY / BRANDING NOTE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your app is titled "Starship Lander" and references SpaceX.
+Play Store may ask about IP rights. Recommended precautions:
+
+[ ] Include "(Unofficial)" in your app title or description:
+    e.g. "Starship Lander (Unofficial Fan Game)"
+    — your index.html already says this in the <title> tag
+
+[ ] Add a disclaimer in your full description:
+    "This is an unofficial fan-made game and is not affiliated with,
+    endorsed by, or connected to SpaceX in any way. SpaceX and
+    Starship are trademarks of Space Exploration Technologies Corp."
+
+[ ] Do NOT use the official SpaceX logo or trademarked branding
+    in your icon or feature graphic
+
+[ ] If SpaceX sends a takedown notice, you will need to rebrand
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  10. ADMOB — FINAL CHECKS BEFORE LAUNCH
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Log in to https://admob.google.com and verify:
+    - Your app is linked to AdMob (add the app if not already done)
+    - Ad units are active and not in "Limited" status
+    - Your AdMob account payment info is set up (for receiving revenue)
+    - You have accepted AdMob Terms of Service
+
+[ ] Add your Play Store app URL to AdMob once published
+    (AdMob → Apps → select app → App settings → App store URL)
+
+[ ] GDPR / consent: your app already calls requestConsentInfo()
+    via the UMP SDK in admob.js — this is correct for EEA compliance
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  11. PLAY CONSOLE — STEP BY STEP SUBMISSION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Go to https://play.google.com/console
+[ ] Create app → Android → Free → Not mainly for children
+[ ] Fill in app details (title, description, category: Games > Simulation)
+[ ] Upload store listing assets (icon, feature graphic, screenshots)
+[ ] Set up content rating (complete questionnaire)
+[ ] Fill in data safety form
+[ ] Add privacy policy URL
+[ ] Declare ads
+[ ] Create a release:
+      Production → Create new release → Upload your .aab file
+[ ] Answer any pre-launch report warnings
+[ ] Submit for review
+
+Review typically takes 1–7 days for a new app.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  12. OPTIONAL BUT RECOMMENDED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ ] Set up Google Play App Signing (Play manages your signing key)
+    Reduces risk of losing your keystore
+
+[ ] Enable Pre-launch report in Play Console
+    Google will auto-test your app on real devices and flag crashes
+
+[ ] Add a contact email on your Play Store listing
+    Required for users to reach you about data requests
+
+[ ] Consider a closed/open testing track first
+    Upload to Internal Testing → test on your own device →
+    then promote to Production when satisfied
+
+[ ] App category: Games → Simulation (or Arcade)
+
+[ ] Add keywords in description for discoverability:
+    spacex, starship, rocket, landing, booster, simulator,
+    space, launch, lander, chopsticks
+
+═══════════════════════════════════════════════════════════════
+  SUMMARY — MINIMUM REQUIRED BEFORE SUBMISSION
+═══════════════════════════════════════════════════════════════
+
+  1. Developer account ($25)
+  2. Signed AAB build
+  3. Privacy policy hosted at a public URL
+  4. 512x512 icon + 1024x500 feature graphic + 2 screenshots
+  5. Short + full description
+  6. Content rating questionnaire completed
+  7. Data safety form completed
+  8. Ads declared
+  9. Target audience set to 13+
+ 10. AdMob payment profile set up
+
+═══════════════════════════════════════════════════════════════

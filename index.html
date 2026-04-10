@@ -223,19 +223,12 @@
 		}
 		.pause-menu-buttons {
 			display: flex;
-			flex-direction: row;
-			gap: 6px;
-			justify-content: center;
+			flex-direction: column;
+			gap: 8px;
 		}
 		.pause-menu-buttons .btn {
-			flex: 1;
+			width: 100%;
 			margin: 0;
-			padding: 10px 4px;
-			font-size: clamp(0.6rem, 2.8vw, 0.9rem);
-			white-space: nowrap;
-			overflow: hidden;
-			text-overflow: ellipsis;
-			text-align: center;
 		}
 
 		/* Scoreboard action buttons row */
@@ -334,9 +327,9 @@
 	<div id="overlay-continue" class="overlay" style="display:none">
 		<div class="overlay-box">
 			<h2>Continue?</h2>
-			<p>Watch a short ad to continue from your last checkpoint.</p>
+			<p>Watch a short ad to resume from your last checkpoint (+1s penalty), or restart the mission.</p>
 			<div style="display:flex;gap:10px;justify-content:center;">
-				<button class="btn" id="continue-skip-btn">Skip</button>
+				<button class="btn" id="continue-restart-btn">Restart</button>
 				<button class="btn btn-primary" id="continue-watch-btn">Watch Ad</button>
 			</div>
 		</div>
@@ -362,6 +355,7 @@
 				<button class="btn" id="pause-restart-btn">Restart</button>
 				<button class="btn" id="pause-username-btn">Callsign</button>
 				<button class="btn" id="pause-share-btn">Share</button>
+				<button class="btn" id="pause-noads-btn">No Ads</button>
 				<button class="btn btn-primary" id="pause-resume-btn">Continue</button>
 			</div>
 		</div>

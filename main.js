@@ -7,6 +7,7 @@ import { initAdMob, showInterstitialAd, showRewardedAd } from './admob.js';
 import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
 import { playSound, setThrust, stopAllSounds, stopAllExcept } from './sounds.js';
+import { initPurchases, purchaseRemoveAds, isAdsRemoved } from './inapppurchase.js';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use
@@ -220,6 +221,9 @@ class Game {
     this.bestTime = parseFloat(localStorage.getItem('bestTime')) || null;
     this.checkpointInSpace = false; // checkpoint: stage separation done
     this.checkpointBoosterLanded = false; // checkpoint: booster has landed
+    this.checkpointTime = 0; // missionTime (ms) when the last checkpoint was reached
+    this.penaltyMs = 0; // accumulated crash penalty in ms (1000 per checkpoint resume)
+    this.penaltyWaivers = isAdsRemoved() ? 3 : 0; // waivers granted to ad-free players per game
     this.checkpointTextTimer = 0; // how long to show checkpoint text (ms)
     this.checkpointText = ''; // message shown when a checkpoint is reached
     this.descentAlerts = { 40: false, 30: false, 20: false }; // altitude descent warnings (km)
@@ -334,6 +338,9 @@ class Game {
     this.missionTime = 0;
     this.checkpointInSpace = false;
     this.checkpointBoosterLanded = false;
+    this.checkpointTime = 0;
+    this.penaltyMs = 0;
+    this.penaltyWaivers = isAdsRemoved() ? 3 : 0;
     this.checkpointTextTimer = 0;
     this.checkpointText = '';
     this.descentAlerts = { 40: false, 30: false, 20: false };
@@ -353,7 +360,7 @@ class Game {
     this.loadLeaderboard();
   }
 
-  resetToCheckpoint() {
+  resetToCheckpoint(noPenalty = false) {
     // Restore booster to its landed position
     this.shipBottom.gravity = false;
     this.shipBottom.x = 0;
@@ -383,9 +390,12 @@ class Game {
     this.won = false;
     this.descentAlerts = { 40: false, 30: false, 20: false };
     this.invertPromptTimer = 0;
+    if (!noPenalty) this.penaltyMs += 1000;
+    // Reset displayed clock to checkpoint time
+    this.missionStartTime = performance.now() - this.checkpointTime;
   }
 
-  resetToSpaceCheckpoint() {
+  resetToSpaceCheckpoint(noPenalty = false) {
     // Remove any ships from the scene
     this.scene.remove(this.shipFull);
     this.scene.remove(this.shipTop);
@@ -421,6 +431,9 @@ class Game {
     this.won = false;
     this.descentAlerts = { 40: false, 30: false, 20: false };
     this.invertPromptTimer = 0;
+    if (!noPenalty) this.penaltyMs += 1000;
+    // Reset displayed clock to checkpoint time
+    this.missionStartTime = performance.now() - this.checkpointTime;
   }
 
   // Called by ship.js after the explosion delay (ship already removed from scene)
@@ -428,40 +441,50 @@ class Game {
     this.objective.controlShip = null; // prevent engineFiring from re-triggering thrust sound this frame
     window._deathCount = (window._deathCount || 0) + 1;
 
+    if (isAdsRemoved()) {
+      // Ad-free users: no overlay, waivers consumed automatically in doReset()
+      this.doReset();
+      return;
+    }
+
     // Every other failure (2nd, 4th, 6th…): prompt user to watch ad
     if (window._deathCount % 2 === 0) {
       const continueOverlay = document.getElementById('overlay-continue');
       if (continueOverlay) continueOverlay.style.display = 'flex';
-      // Callbacks picked up by the Watch Ad / Skip buttons wired at load time
       window._continueWatchAd = () => {
         if (continueOverlay) continueOverlay.style.display = 'none';
         adPlaying = true;
         const adOverlay = document.getElementById('overlay-ad-loading');
         if (adOverlay) adOverlay.style.display = 'flex';
-        const finishAd = () => {
+        const finishAd = (earned) => {
           if (adOverlay) adOverlay.style.display = 'none';
           adPlaying = false;
           previousFrame = 0;
-          this.doReset();
+          this.doReset(earned === true); // no penalty if reward was earned
           window._openPauseMenu?.();
         };
-        showRewardedAd().then(finishAd).catch(finishAd);
+        showRewardedAd().then(finishAd).catch(() => finishAd(false));
       };
-      window._continueSkip = () => {
+      window._continueRestart = () => {
         if (continueOverlay) continueOverlay.style.display = 'none';
-        this.doReset();
+        this.reset();
       };
     } else {
       this.doReset();
     }
   }
 
-  // Resolves the correct reset based on checkpoint state
-  doReset() {
+  // Resolves the correct reset based on checkpoint state.
+  // Automatically consumes a penalty waiver if the player has one.
+  doReset(noPenalty = false) {
+    if (!noPenalty && this.penaltyWaivers > 0) {
+      this.penaltyWaivers--;
+      noPenalty = true;
+    }
     if (this.checkpointBoosterLanded) {
-      this.resetToCheckpoint();
+      this.resetToCheckpoint(noPenalty);
     } else if (this.checkpointInSpace) {
-      this.resetToSpaceCheckpoint();
+      this.resetToSpaceCheckpoint(noPenalty);
     } else {
       this.reset();
     }
@@ -554,6 +577,7 @@ class Game {
                   game.ship.addEventListener('update', game.ship.updateControl);
                   // Checkpoint: Starlinks deployed, camera now on booster
                   game.checkpointInSpace = true;
+                  game.checkpointTime = game.missionTime;
                   game.checkpointText = 'Checkpoint saved!';
                   game.checkpointTextTimer = 3000;
                   vibrate([50, 30, 50, 30, 150]);
@@ -573,7 +597,7 @@ class Game {
         }
       } else if (this.objective.name === 'landing pad') {
         if (this.objective.text === 'Land the booster') {
-          if (Math.abs(this.ship.x - this.objective.x) < 150 && Math.abs(this.ship.y - this.objective.y) < 150 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
+          if (Math.abs(this.ship.x - this.objective.x) < 200 && Math.abs(this.ship.y - this.objective.y) < 200 && (this.ship.rotation > 220 && this.ship.rotation < 320)) {
             this.ship.removeEventListener('update');
             this.ship.addEventListener('update', this.ship.landBottom);
             this.ship = this.shipTop;
@@ -583,6 +607,7 @@ class Game {
             this.objective.x = 0;
             this.objective.y = -131;
             this.checkpointBoosterLanded = true;
+            this.checkpointTime = this.missionTime;
             this.checkpointText = 'Checkpoint saved! Booster landed.';
             this.checkpointTextTimer = 3000;
             this.descentAlerts = { 40: false, 30: false, 20: false };
@@ -590,7 +615,7 @@ class Game {
             vibrate([200, 100, 400]);
           }
         } else if (this.objective.text === 'Land the Starship') {
-          if (Math.abs(this.ship.x - this.objective.x) < 150 && Math.abs(this.ship.y - this.objective.y) < 150 && (this.ship.rotation > 250 && this.ship.rotation < 290)) {
+          if (Math.abs(this.ship.x - this.objective.x) < 200 && Math.abs(this.ship.y - this.objective.y) < 200 && (this.ship.rotation > 220 && this.ship.rotation < 320)) {
             this.ship.removeEventListener('update');
             this.ship.addEventListener('update', this.ship.landTop);
             this.objective.text = '';
@@ -656,12 +681,12 @@ class Game {
           vibrate([100, 50, 100, 50, 600]);
           stopAllSounds();
           playSound('victory');
-          if (this.bestTime === null || this.missionTime < this.bestTime) {
-            this.bestTime = this.missionTime;
+          const finalTime = this.missionTime + this.penaltyMs;
+          if (this.bestTime === null || finalTime < this.bestTime) {
+            this.bestTime = finalTime;
             localStorage.setItem('bestTime', this.bestTime);
           }
           const playerName = localStorage.getItem('starshipPlayerName') || 'Anonymous';
-          const finalTime = this.missionTime;
           submitScore(playerName, finalTime).then(() => {
             getTopScores(10).then((scores) => {
               this.topScores = scores;
@@ -834,13 +859,42 @@ class Game {
       ctx.fillText('On mobile, tap higher for thrust, lower half to rotate', Math.floor(window.innerWidth / 2), Math.floor(window.innerHeight / 4) + hudPx(30));
     }
     // timer + best time (top center) — always visible
-    ctx.font = `${hudPx(22)}px Trebuchet MS`;
-    ctx.textAlign = 'center';
+    const timeCx = Math.floor(window.innerWidth / 2);
+    const timeStr = this.formatTime(this.missionTime);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(this.formatTime(this.missionTime), Math.floor(window.innerWidth / 2), hudPx(30));
+    if (this.penaltyMs > 0) {
+      const penaltySecs = Math.round(this.penaltyMs / 1000);
+      const penaltyStr = `+${penaltySecs}s`;
+      ctx.font = `${hudPx(22)}px Trebuchet MS`;
+      ctx.textAlign = 'left';
+      const timeWidth = ctx.measureText(timeStr).width;
+      ctx.font = `${hudPx(15)}px Trebuchet MS`;
+      const penaltyWidth = ctx.measureText(penaltyStr).width;
+      const gap = hudPx(4);
+      const groupWidth = timeWidth + gap + penaltyWidth;
+      const groupX = timeCx - groupWidth / 2;
+      ctx.font = `${hudPx(22)}px Trebuchet MS`;
+      ctx.fillText(timeStr, groupX, hudPx(30));
+      ctx.font = `${hudPx(15)}px Trebuchet MS`;
+      ctx.fillStyle = '#ff4444';
+      ctx.fillText(penaltyStr, groupX + timeWidth + gap, hudPx(30));
+    } else {
+      ctx.font = `${hudPx(22)}px Trebuchet MS`;
+      ctx.textAlign = 'center';
+      ctx.fillText(timeStr, timeCx, hudPx(30));
+    }
     ctx.font = hudFontMd;
+    ctx.textAlign = 'center';
     ctx.fillStyle = this.won && this.bestTime !== null && this.missionTime === this.bestTime ? '#ffd700' : 'rgba(255,255,255,0.6)';
-    ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', Math.floor(window.innerWidth / 2), hudPx(54));
+    ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', timeCx, hudPx(54));
+    if (isAdsRemoved() && (this.checkpointInSpace || this.checkpointBoosterLanded)) {
+      ctx.font = `${hudPx(12)}px Trebuchet MS`;
+      ctx.fillStyle = this.penaltyWaivers > 0 ? 'rgba(100,220,100,0.85)' : 'rgba(255,255,255,0.3)';
+      ctx.fillText(
+        this.penaltyWaivers > 0 ? `${this.penaltyWaivers} penalty waiver${this.penaltyWaivers !== 1 ? 's' : ''} left` : 'No waivers left',
+        timeCx, hudPx(70)
+      );
+    }
     // objective + telemetry (top left)
     ctx.font = hudFontLg;
     ctx.textAlign = 'left';
@@ -1049,8 +1103,8 @@ window.addEventListener('load', () => {
   playBtn.addEventListener('click', confirmName);
   nameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') confirmName(); });
 
-  document.getElementById('continue-watch-btn').addEventListener('click', () => window._continueWatchAd?.());
-  document.getElementById('continue-skip-btn').addEventListener('click',  () => window._continueSkip?.());
+  document.getElementById('continue-watch-btn').addEventListener('click',    () => window._continueWatchAd?.());
+  document.getElementById('continue-restart-btn').addEventListener('click', () => window._continueRestart?.());
   // Play Again wired up in the game load listener below
 
   const saved = localStorage.getItem('starshipPlayerName');
@@ -1068,6 +1122,20 @@ window.addEventListener('load', () => {
   const resumeBtn = document.getElementById('pause-resume-btn');
   const restartBtn = document.getElementById('pause-restart-btn');
   const usernameBtn = document.getElementById('pause-username-btn');
+  const noAdsBtn = document.getElementById('pause-noads-btn');
+
+  function updateNoAdsBtn() {
+    if (isAdsRemoved()) {
+      noAdsBtn.textContent = 'No Ads ✓';
+      noAdsBtn.disabled = true;
+      noAdsBtn.style.opacity = '0.5';
+    } else {
+      noAdsBtn.textContent = 'No Ads $1.99';
+      noAdsBtn.disabled = false;
+      noAdsBtn.style.opacity = '';
+    }
+  }
+  updateNoAdsBtn();
 
   async function openPauseMenu() {
     const status = document.getElementById('pause-scoreboard-status');
@@ -1122,6 +1190,24 @@ window.addEventListener('load', () => {
     document.getElementById('overlay-name').style.display = 'flex';
     nameInput.focus();
   });
+
+  noAdsBtn.addEventListener('click', async () => {
+    if (isAdsRemoved()) return;
+    noAdsBtn.disabled = true;
+    noAdsBtn.textContent = 'Loading…';
+    const error = await purchaseRemoveAds();
+    if (error) {
+      alert(error);
+    }
+    // Button state updates via initPurchases onStatusChange callback on success;
+    // restore it on failure so the user can try again.
+    updateNoAdsBtn();
+  });
+
+  // Init IAP — also silently restores any existing purchase from Google account
+  initPurchases(() => {
+    updateNoAdsBtn();
+  });
 });
 
 // Initialise AdMob banner (no-op in browser)
@@ -1147,17 +1233,19 @@ window.addEventListener('load', () => {
 
   const game = new Game();
 
-  // Play Again button — show interstitial after every win, then reset
+  // Play Again button — show interstitial after every win (skipped for ad-free users)
   document.getElementById('close-scoreboard-btn').addEventListener('click', async () => {
     hideScoreboard();
-    adPlaying = true;
-    const adOverlay = document.getElementById('overlay-ad-loading');
-    if (adOverlay) adOverlay.style.display = 'flex';
-    await showInterstitialAd().catch(() => {});
-    if (adOverlay) adOverlay.style.display = 'none';
-    adPlaying = false;
+    if (!isAdsRemoved()) {
+      adPlaying = true;
+      const adOverlay = document.getElementById('overlay-ad-loading');
+      if (adOverlay) adOverlay.style.display = 'flex';
+      await showInterstitialAd().catch(() => {});
+      if (adOverlay) adOverlay.style.display = 'none';
+      adPlaying = false;
+    }
     previousFrame = 0;
-    game.reset(); // reset() clears missionStartTime so no clock offset needed
+    game.reset();
   });
 
   // Share buttons

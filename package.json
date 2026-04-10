@@ -12,7 +12,7 @@
     "eslint": "^8.57.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-plugin-import": "^2.29.1",
-    "vite": "^5.1.6"
+    "vite": "^8.0.8"
   },
   "dependencies": {
     "@capacitor-community/admob": "^8.0.0",
@@ -20,6 +20,7 @@
     "@capacitor/app": "^8.1.0",
     "@capacitor/cli": "^8.3.0",
     "@capacitor/core": "^8.3.0",
-    "@capacitor/share": "^8.0.1"
+    "@capacitor/share": "^8.0.1",
+    "cordova-plugin-purchase": "^13.13.1"
   }
 }

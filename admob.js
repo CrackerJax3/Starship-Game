@@ -18,7 +18,7 @@ const TEST_INTERSTITIAL_ID = 'ca-app-pub-3940256099942544/1033173712';
 const TEST_REWARDED_ID     = 'ca-app-pub-3940256099942544/5224354917';
 
 // Flip to false once you have a real interstitial ad unit ID
-const USE_TEST_ADS = true;
+const USE_TEST_ADS = false;
 
 // ─── Initialise ──────────────────────────────────────────────────────────────
 export async function initAdMob() {
@@ -34,11 +34,12 @@ export async function initAdMob() {
     return;
   }
 
-  // GDPR / UMP consent (required for EEA & Play Store compliance)
+  // GDPR / UMP consent (required for EEA & Play Store compliance).
+  // IMPORTANT: You must also create a GDPR message in the AdMob console:
+  //   AdMob → Privacy & messaging → GDPR → Create message
+  // Without that step the consent form will never appear for EEA users.
   try {
-    const { status, isConsentFormAvailable } = await AdMob.requestConsentInfo({
-      debugGeography: 0,
-    });
+    const { status, isConsentFormAvailable } = await AdMob.requestConsentInfo({});
     const needsConsent = status === AdmobConsentStatus.REQUIRED
       || status === AdmobConsentStatus.UNKNOWN;
     if (isConsentFormAvailable && needsConsent) {
