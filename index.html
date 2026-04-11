@@ -18,6 +18,16 @@
 			-ms-user-select: none;
 			user-select: none;
 			box-sizing: border-box;
+			touch-action: none;
+		}
+
+		html, body {
+			overscroll-behavior: none;
+			overscroll-behavior-y: none;
+			position: fixed;
+			width: 100%;
+			height: 100%;
+			background: #000;
 		}
 
 		.overlay {
@@ -142,119 +152,216 @@
 			margin-bottom: 12px;
 		}
 
-		/* ── AdSense left banner ── */
-		:root {
-			--ad-width: 160px;
-			--ad-height: min(600px, 80vh);
-			--toggle-width: 32px;
-			--toggle-font: 22px;
-		}
-
-		@media (max-width: 767px) {
-			:root {
-				--ad-width: 120px;
-				--ad-height: min(480px, 70vh);
-				--toggle-width: 44px;   /* meets touch target minimum */
-				--toggle-font: 26px;
-			}
-		}
-
-		#ad-panel {
+		/* Burger menu button */
+		#burger-btn {
 			position: fixed;
-			top: 50%;
-			left: 0;
-			transform: translateY(-50%);
+			top: 14px;
+			right: 14px;
 			z-index: 20;
-			transition: transform 0.3s ease;
+			width: 44px;
+			height: 44px;
 			display: flex;
-			align-items: stretch;
-		}
-
-		#ad-panel.collapsed {
-			transform: translateY(-50%) translateX(calc(-1 * var(--ad-width)));
-		}
-
-		#ad-content {
-			width: var(--ad-width);
-			height: var(--ad-height);
-			background: rgba(5, 12, 28, 0.92);
-			border-right: 1px solid rgba(255, 255, 255, 0.12);
-			display: flex;
+			flex-direction: column;
 			align-items: center;
 			justify-content: center;
-			flex-shrink: 0;
-			overflow: hidden;
-		}
-
-		#ad-toggle {
-			width: var(--toggle-width);
-			min-height: 80px;
-			background: rgba(29, 115, 255, 0.35);
-			border: 1px solid rgba(29, 115, 255, 0.6);
-			border-left: none;
-			border-radius: 0 8px 8px 0;
-			color: #fff;
-			font-size: var(--toggle-font);
-			font-weight: bold;
+			gap: 6px;
+			background: rgba(10, 20, 40, 0.72);
+			border: 1px solid rgba(255, 255, 255, 0.18);
+			border-radius: 8px;
 			cursor: pointer;
-			display: flex;
-			align-items: center;
-			justify-content: center;
-			flex-shrink: 0;
-			user-select: none;
-			padding: 16px 0;
+			padding: 0;
 			transition: background 0.15s;
 		}
-
-		#ad-toggle:hover {
-			background: rgba(29, 115, 255, 0.65);
+		#burger-btn:hover {
+			background: rgba(10, 20, 40, 0.92);
+		}
+		#burger-btn span {
+			display: block;
+			width: 22px;
+			height: 2px;
+			background: #fff;
+			border-radius: 2px;
 		}
 
-		#ad-toggle .arrow {
+		/* Pause menu overlay */
+		#overlay-pause {
+			z-index: 15;
+		}
+		#overlay-pause .overlay-box {
+			min-width: 300px;
+		}
+		#overlay-pause h2 {
+			font-size: 1.4em;
+			margin-bottom: 20px;
+			letter-spacing: 1px;
+		}
+		#pause-scoreboard-table {
+			width: 100%;
+			border-collapse: collapse;
+			margin-bottom: 20px;
+			font-size: 0.95em;
+		}
+		#pause-scoreboard-table th {
+			color: rgba(255, 255, 255, 0.5);
+			font-weight: normal;
+			padding: 4px 8px;
+			text-align: left;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		}
+		#pause-scoreboard-table td {
+			padding: 6px 8px;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		}
+		#pause-scoreboard-table tr.highlight td {
+			color: #ffd700;
+			font-weight: bold;
+		}
+		#pause-scoreboard-status {
+			color: rgba(255, 255, 255, 0.45);
+			font-size: 0.85em;
+			margin-bottom: 12px;
+		}
+		.pause-menu-buttons {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+		.pause-menu-buttons .btn {
+			width: 100%;
+			margin: 0;
+		}
+
+		/* Scoreboard action buttons row */
+		.scoreboard-buttons {
+			display: flex;
+			gap: 8px;
+			justify-content: center;
+		}
+		.scoreboard-buttons .btn {
+			flex: 1;
+			margin: 0;
+		}
+
+		/* World Record banner */
+		@keyframes wr-pulse {
+			0%, 100% { transform: scale(1); opacity: 1; }
+			50% { transform: scale(1.06); opacity: 0.85; }
+		}
+		#wr-banner {
+			background: linear-gradient(135deg, rgba(255,215,0,0.18), rgba(255,140,0,0.18));
+			border: 1px solid rgba(255,215,0,0.6);
+			border-radius: 8px;
+			padding: 10px 16px;
+			margin-bottom: 16px;
+			animation: wr-pulse 1.2s ease-in-out infinite;
+		}
+		#wr-title {
+			font-size: 1.1em;
+			font-weight: bold;
+			color: #ffd700;
+			letter-spacing: 1px;
+			margin: 0;
+		}
+
+		/* Share sub-menu */
+		#share-menu {
+			margin-top: 4px;
+			display: none;
+			flex-direction: column;
+			gap: 8px;
+			background: rgba(255,255,255,0.05);
+			border: 1px solid rgba(255,255,255,0.1);
+			border-radius: 8px;
+			padding: 12px;
+		}
+		#share-menu.open {
+			display: flex;
+		}
+		#share-menu p {
+			font-size: 0.8em;
+			margin-bottom: 4px;
+			color: rgba(255,255,255,0.5);
+		}
+		.share-links {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			justify-content: center;
+		}
+		.share-links a {
 			display: inline-block;
-			line-height: 1;
-			transition: transform 0.3s ease;
+			padding: 7px 14px;
+			font-size: 0.88em;
+			font-family: 'Trebuchet MS', sans-serif;
+			background: rgba(255,255,255,0.10);
+			border: 1px solid rgba(255,255,255,0.2);
+			border-radius: 6px;
+			color: #fff;
+			text-decoration: none;
+			cursor: pointer;
+			transition: background 0.15s;
 		}
-
-		#ad-panel.collapsed #ad-toggle .arrow {
-			transform: rotate(180deg);
+		.share-links a:hover {
+			background: rgba(255,255,255,0.22);
 		}
 	</style>
-	<!-- Replace ca-pub-XXXXXXXXXXXXXXXX with your AdSense publisher ID -->
-	<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
-  <script type="module" crossorigin src="/Starship-Game/assets/index-C6exBzoC.js"></script>
+  <script type="module" crossorigin src="./assets/index-CGZwB3kz.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/consent-status.enum-22WNHgv5.js">
+  <link rel="modulepreload" crossorigin href="./assets/dist-Bm2sSJTv.js">
 </head>
 
 <body>
-	<!-- AdSense collapsible left banner -->
-	<div id="ad-panel">
-		<div id="ad-content">
-			<!-- Replace data-ad-client and data-ad-slot with your own values -->
-			<ins class="adsbygoogle"
-				style="display:block;width:100%;height:100%"
-				data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-				data-ad-slot="XXXXXXXXXX"
-				data-ad-format="auto"
-				data-full-width-responsive="true"></ins>
-		</div>
-		<div id="ad-toggle" title="Toggle ad"><span class="arrow">&#9664;</span></div>
+	<!-- Ad loading overlay — shown while an ad is fetching -->
+	<div id="overlay-ad-loading" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+		<div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.75);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+		<div style="color:rgba(255,255,255,0.65);font-family:'Trebuchet MS',sans-serif;font-size:0.9em;letter-spacing:0.5px;">Loading ad…</div>
 	</div>
-	<script>
-		(function () {
-			var panel = document.getElementById('ad-panel');
-			var toggle = document.getElementById('ad-toggle');
-			// Default: collapsed on mobile, expanded on desktop
-			var stored = localStorage.getItem('adPanelCollapsed');
-			var isMobile = window.innerWidth < 768;
-			var collapsed = stored !== null ? stored === 'true' : isMobile;
-			if (collapsed) panel.classList.add('collapsed');
-			toggle.addEventListener('click', function () {
-				panel.classList.toggle('collapsed');
-				localStorage.setItem('adPanelCollapsed', panel.classList.contains('collapsed'));
-			});
-			try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch (e) {}
-		})();
-	</script>
+	<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
+	<!-- Burger menu button -->
+	<button id="burger-btn" aria-label="Menu">
+		<span></span>
+		<span></span>
+		<span></span>
+	</button>
+
+	<!-- Continue prompt — shown on every 2nd crash -->
+	<div id="overlay-continue" class="overlay" style="display:none">
+		<div class="overlay-box">
+			<h2>Continue?</h2>
+			<p>Watch a short ad to resume from your last checkpoint (+1s penalty), or restart the mission.</p>
+			<div style="display:flex;gap:10px;justify-content:center;">
+				<button class="btn" id="continue-restart-btn">Restart</button>
+				<button class="btn btn-primary" id="continue-watch-btn">Watch Ad</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Pause menu overlay (burger) -->
+	<div id="overlay-pause" class="overlay" style="display:none">
+		<div class="overlay-box">
+			<h2>🏆 Leaderboard</h2>
+			<p id="pause-scoreboard-status">Loading scores…</p>
+			<table id="pause-scoreboard-table">
+				<thead>
+					<tr>
+						<th>#</th>
+						<th>Name</th>
+						<th>Time</th>
+						<th>Flights</th>
+					</tr>
+				</thead>
+				<tbody id="pause-scoreboard-body"></tbody>
+			</table>
+			<div class="pause-menu-buttons">
+				<button class="btn" id="pause-restart-btn">Restart</button>
+				<button class="btn" id="pause-username-btn">Callsign</button>
+				<button class="btn" id="pause-share-btn">Share</button>
+				<button class="btn" id="pause-noads-btn">No Ads</button>
+				<button class="btn btn-primary" id="pause-resume-btn">Continue</button>
+			</div>
+		</div>
+	</div>
 
 	<!-- Name entry overlay — shown on first visit -->
 	<div id="overlay-name" class="overlay">
@@ -270,6 +377,9 @@
 	<!-- Scoreboard overlay — shown after winning -->
 	<div id="overlay-scoreboard" class="overlay" style="display:none">
 		<div class="overlay-box">
+			<div id="wr-banner" style="display:none">
+				<p id="wr-title">🌍 NEW WORLD RECORD!</p>
+			</div>
 			<h2>🏆 Leaderboard</h2>
 			<p id="scoreboard-status">Loading scores…</p>
 			<table id="scoreboard-table">
@@ -278,11 +388,15 @@
 						<th>#</th>
 						<th>Name</th>
 						<th>Time</th>
+						<th>Flights</th>
 					</tr>
 				</thead>
 				<tbody id="scoreboard-body"></tbody>
 			</table>
-			<button class="btn btn-primary" id="close-scoreboard-btn">Play Again</button>
+			<div class="scoreboard-buttons">
+				<button class="btn" id="scoreboard-share-btn">Share</button>
+				<button class="btn btn-primary" id="close-scoreboard-btn">Play Again</button>
+			</div>
 		</div>
 	</div>
 </body>
