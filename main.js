@@ -3,12 +3,8 @@ import GameObject from './gameobject.js';
 import Particle from './particle.js';
 import Ship from './ship.js';
 import { submitScore, getTopScores } from './leaderboard.js';
-import { initAdMob, showInterstitialAd, showRewardedAd } from './admob.js';
 import { Share } from '@capacitor/share';
-import { App } from '@capacitor/app';
-import { Capacitor } from '@capacitor/core';
 import { playSound, setThrust, stopAllSounds, stopAllExcept } from './sounds.js';
-import { initPurchases, purchaseRemoveAds, isAdsRemoved } from './inapppurchase.js';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use
@@ -20,16 +16,14 @@ const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
 let dpr = window.devicePixelRatio || 1;
 let appActive = true;    // false when app is backgrounded
-let adPlaying = false;   // true while a full-screen ad is showing
-let previousFrame = 0;   // last rAF timestamp — hoisted so ads can reset it
+let previousFrame = 0;   // last rAF timestamp
 
 // object to store all input
 const Input = {};
 function overlayVisible() {
   return document.getElementById('overlay-name').style.display !== 'none'
     || document.getElementById('overlay-scoreboard').style.display !== 'none'
-    || document.getElementById('overlay-pause').style.display !== 'none'
-    || document.getElementById('overlay-continue').style.display !== 'none';
+    || document.getElementById('overlay-pause').style.display !== 'none';
 }
 
 function vibrate(pattern) {
@@ -224,7 +218,7 @@ class Game {
     this.checkpointBoosterLanded = false; // checkpoint: booster has landed
     this.checkpointTime = 0; // missionTime (ms) when the last checkpoint was reached
     this.penaltyMs = 0; // accumulated crash penalty in ms (1000 per checkpoint resume)
-    this.penaltyWaivers = isAdsRemoved() ? 3 : 0; // waivers granted to ad-free players per game
+    this.penaltyWaivers = 0;
     this.checkpointTextTimer = 0; // how long to show checkpoint text (ms)
     this.checkpointText = ''; // message shown when a checkpoint is reached
     this.descentAlerts = { 40: false, 30: false, 20: false }; // altitude descent warnings (km)
@@ -341,7 +335,7 @@ class Game {
     this.checkpointBoosterLanded = false;
     this.checkpointTime = 0;
     this.penaltyMs = 0;
-    this.penaltyWaivers = isAdsRemoved() ? 3 : 0;
+    this.penaltyWaivers = 0;
     this.checkpointTextTimer = 0;
     this.checkpointText = '';
     this.descentAlerts = { 40: false, 30: false, 20: false };
@@ -440,39 +434,7 @@ class Game {
   // Called by ship.js after the explosion delay (ship already removed from scene)
   onCrash() {
     this.objective.controlShip = null; // prevent engineFiring from re-triggering thrust sound this frame
-    window._deathCount = (window._deathCount || 0) + 1;
-
-    if (isAdsRemoved()) {
-      // Ad-free users: no overlay, waivers consumed automatically in doReset()
-      this.doReset();
-      return;
-    }
-
-    // Every other failure (2nd, 4th, 6th…): prompt user to watch ad
-    if (window._deathCount % 2 === 0) {
-      const continueOverlay = document.getElementById('overlay-continue');
-      if (continueOverlay) continueOverlay.style.display = 'flex';
-      window._continueWatchAd = () => {
-        if (continueOverlay) continueOverlay.style.display = 'none';
-        adPlaying = true;
-        const adOverlay = document.getElementById('overlay-ad-loading');
-        if (adOverlay) adOverlay.style.display = 'flex';
-        const finishAd = (earned) => {
-          if (adOverlay) adOverlay.style.display = 'none';
-          adPlaying = false;
-          previousFrame = 0;
-          this.doReset(earned === true); // no penalty if reward was earned
-          window._openPauseMenu?.();
-        };
-        showRewardedAd().then(finishAd).catch(() => finishAd(false));
-      };
-      window._continueRestart = () => {
-        if (continueOverlay) continueOverlay.style.display = 'none';
-        this.reset();
-      };
-    } else {
-      this.doReset();
-    }
+    this.doReset();
   }
 
   // Resolves the correct reset based on checkpoint state.
@@ -888,14 +850,6 @@ class Game {
     ctx.textAlign = 'center';
     ctx.fillStyle = this.won && this.bestTime !== null && this.missionTime === this.bestTime ? '#ffd700' : 'rgba(255,255,255,0.6)';
     ctx.fillText(this.bestTime !== null ? `Best: ${this.formatTime(this.bestTime)}` : 'Best: --:--.--', timeCx, hudPx(54));
-    if (isAdsRemoved() && (this.checkpointInSpace || this.checkpointBoosterLanded)) {
-      ctx.font = `${hudPx(12)}px Trebuchet MS`;
-      ctx.fillStyle = this.penaltyWaivers > 0 ? 'rgba(100,220,100,0.85)' : 'rgba(255,255,255,0.3)';
-      ctx.fillText(
-        this.penaltyWaivers > 0 ? `${this.penaltyWaivers} penalty waiver${this.penaltyWaivers !== 1 ? 's' : ''} left` : 'No waivers left',
-        timeCx, hudPx(70)
-      );
-    }
     // objective + telemetry (top left)
     ctx.font = hudFontLg;
     ctx.textAlign = 'left';
@@ -1103,8 +1057,6 @@ window.addEventListener('load', () => {
   playBtn.addEventListener('click', confirmName);
   nameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') confirmName(); });
 
-  document.getElementById('continue-watch-btn').addEventListener('click',    () => window._continueWatchAd?.());
-  document.getElementById('continue-restart-btn').addEventListener('click', () => window._continueRestart?.());
   // Play Again wired up in the game load listener below
 
   const saved = localStorage.getItem('starshipPlayerName');
@@ -1122,20 +1074,6 @@ window.addEventListener('load', () => {
   const resumeBtn = document.getElementById('pause-resume-btn');
   const restartBtn = document.getElementById('pause-restart-btn');
   const usernameBtn = document.getElementById('pause-username-btn');
-  const noAdsBtn = document.getElementById('pause-noads-btn');
-
-  function updateNoAdsBtn() {
-    if (isAdsRemoved()) {
-      noAdsBtn.textContent = 'No Ads ✓';
-      noAdsBtn.disabled = true;
-      noAdsBtn.style.opacity = '0.5';
-    } else {
-      noAdsBtn.textContent = 'No Ads $1.99';
-      noAdsBtn.disabled = false;
-      noAdsBtn.style.opacity = '';
-    }
-  }
-  updateNoAdsBtn();
 
   async function openPauseMenu() {
     const status = document.getElementById('pause-scoreboard-status');
@@ -1191,27 +1129,7 @@ window.addEventListener('load', () => {
     nameInput.focus();
   });
 
-  noAdsBtn.addEventListener('click', async () => {
-    if (isAdsRemoved()) return;
-    noAdsBtn.disabled = true;
-    noAdsBtn.textContent = 'Loading…';
-    const error = await purchaseRemoveAds();
-    if (error) {
-      alert(error);
-    }
-    // Button state updates via initPurchases onStatusChange callback on success;
-    // restore it on failure so the user can try again.
-    updateNoAdsBtn();
-  });
-
-  // Init IAP — also silently restores any existing purchase from Google account
-  initPurchases(() => {
-    updateNoAdsBtn();
-  });
 });
-
-// Initialise AdMob banner (no-op in browser)
-initAdMob();
 
 // start game on load
 window.addEventListener('load', () => {
@@ -1233,17 +1151,9 @@ window.addEventListener('load', () => {
 
   const game = new Game();
 
-  // Play Again button — show interstitial after every win (skipped for ad-free users)
-  document.getElementById('close-scoreboard-btn').addEventListener('click', async () => {
+  // Play Again button
+  document.getElementById('close-scoreboard-btn').addEventListener('click', () => {
     hideScoreboard();
-    if (!isAdsRemoved()) {
-      adPlaying = true;
-      const adOverlay = document.getElementById('overlay-ad-loading');
-      if (adOverlay) adOverlay.style.display = 'flex';
-      await showInterstitialAd().catch(() => {});
-      if (adOverlay) adOverlay.style.display = 'none';
-      adPlaying = false;
-    }
     previousFrame = 0;
     game.reset();
   });
@@ -1259,19 +1169,11 @@ window.addEventListener('load', () => {
       game.reset();
     });
   }
-  // Pause/resume game loop when app is backgrounded/foregrounded (native only)
-  if (Capacitor.isNativePlatform()) {
-    App.addListener('appStateChange', ({ isActive }) => {
-      appActive = isActive;
-      if (isActive) previousFrame = 0; // reset so deltaTime doesn't spike on resume
-    });
-  }
-
   // performance control/measurement
   const MAX_FRAME = 100; // ensures that physics don't break on slow devices or when tabs are switched
   // game loop (an Immediately Invoked Function Expression that returns a function inside the `requestAnimationFrame`)
   window.requestAnimationFrame((function main(currentFrame) {
-    if (appActive && !adPlaying) {
+    if (appActive) {
       if (!overlayVisible()) {
         // update (pass in `deltaTime`: the time in seconds since the last frame, restricted by an upper bound of 100ms)
         game.Update(Math.min(currentFrame - previousFrame, MAX_FRAME) / 1000);

@@ -2,7 +2,7 @@ name: Deploy web to GitHub Pages
 
 on:
   push:
-    branches: [apkadmob]
+    branches: [apkadmob, webgame1]
 
 permissions:
   contents: write

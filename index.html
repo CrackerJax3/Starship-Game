@@ -315,31 +315,12 @@
 </head>
 
 <body>
-	<!-- Ad loading overlay — shown while an ad is fetching -->
-	<div id="overlay-ad-loading" style="display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;flex-direction:column;gap:14px;">
-		<div style="width:36px;height:36px;border:3px solid rgba(255,255,255,0.15);border-top-color:rgba(255,255,255,0.75);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
-		<div style="color:rgba(255,255,255,0.65);font-family:'Trebuchet MS',sans-serif;font-size:0.9em;letter-spacing:0.5px;">Loading ad…</div>
-	</div>
-	<style>@keyframes spin { to { transform: rotate(360deg); } }</style>
-
 	<!-- Burger menu button -->
 	<button id="burger-btn" aria-label="Menu">
 		<span></span>
 		<span></span>
 		<span></span>
 	</button>
-
-	<!-- Continue prompt — shown on every 2nd crash -->
-	<div id="overlay-continue" class="overlay" style="display:none">
-		<div class="overlay-box">
-			<h2>Continue?</h2>
-			<p>Watch a short ad to resume from your last checkpoint (+1s penalty), or restart the mission.</p>
-			<div style="display:flex;gap:10px;justify-content:center;">
-				<button class="btn" id="continue-restart-btn">Restart</button>
-				<button class="btn btn-primary" id="continue-watch-btn">Watch Ad</button>
-			</div>
-		</div>
-	</div>
 
 	<!-- Pause menu overlay (burger) -->
 	<div id="overlay-pause" class="overlay" style="display:none">
@@ -361,7 +342,6 @@
 				<button class="btn" id="pause-restart-btn">Restart</button>
 				<button class="btn" id="pause-username-btn">Callsign</button>
 				<button class="btn" id="pause-share-btn">Share</button>
-				<button class="btn" id="pause-noads-btn">No Ads</button>
 				<button class="btn btn-primary" id="pause-resume-btn">Continue</button>
 			</div>
 		</div>
