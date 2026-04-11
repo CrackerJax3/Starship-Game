@@ -6,6 +6,7 @@ import { submitScore, getTopScores } from './leaderboard.js';
 import { initAdMob, showInterstitialAd, showRewardedAd } from './admob.js';
 import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { playSound, setThrust, stopAllSounds, stopAllExcept } from './sounds.js';
 import { initPurchases, purchaseRemoveAds, isAdsRemoved } from './inapppurchase.js';
 
@@ -1097,8 +1098,7 @@ window.addEventListener('load', () => {
   const closeBtn = document.getElementById('close-scoreboard-btn');
 
   function confirmName() {
-    const name = nameInput.value.trim();
-    if (!name) { nameInput.focus(); return; }
+    const name = nameInput.value.trim() || 'Pilot';
     localStorage.setItem('starshipPlayerName', name);
     nameOverlay.style.display = 'none';
   }
@@ -1262,11 +1262,13 @@ window.addEventListener('load', () => {
       game.reset();
     });
   }
-  // Pause/resume game loop when app is backgrounded/foregrounded
-  App.addListener('appStateChange', ({ isActive }) => {
-    appActive = isActive;
-    if (isActive) previousFrame = 0; // reset so deltaTime doesn't spike on resume
-  });
+  // Pause/resume game loop when app is backgrounded/foregrounded (native only)
+  if (Capacitor.isNativePlatform()) {
+    App.addListener('appStateChange', ({ isActive }) => {
+      appActive = isActive;
+      if (isActive) previousFrame = 0; // reset so deltaTime doesn't spike on resume
+    });
+  }
 
   // performance control/measurement
   const MAX_FRAME = 100; // ensures that physics don't break on slow devices or when tabs are switched
