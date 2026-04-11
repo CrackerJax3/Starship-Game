@@ -9,10 +9,10 @@ function load(src, { loop = false, volume = 1 } = {}) {
 }
 
 const SFX = {
-  explosion:   load('./sounds/explosion.wav',    { volume: 0.85 }),
-  starlink:    load('./sounds/starlink.wav',      { volume: 0.35 }),
-  victory:     load('./sounds/victory.wav',       { volume: 0.9  }),
-  worldrecord: load('./sounds/worldrecord.mp3',  { volume: 1.0  }),
+  explosion:   load('./sounds/explosion.wav',    { volume: 1.0 }),
+  starlink:    load('./sounds/starlink.wav',      { volume: 0.8 }),
+  victory:     load('./sounds/victory.wav',       { volume: 1.0 }),
+  worldrecord: load('./sounds/worldrecord.mp3',  { volume: 1.0 }),
 };
 
 // ─── Thrust — Web Audio API so gain can exceed 1.0 ────────────────────────────
@@ -20,7 +20,7 @@ let _audioCtx = null;
 let _thrustSource = null;
 let _thrustGain = null;
 let _thrustBuffer = null;
-const THRUST_GAIN = 6.0;
+const THRUST_GAIN = 12.0;
 
 function _getAudioCtx() {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();

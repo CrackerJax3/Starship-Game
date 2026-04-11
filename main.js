@@ -1038,24 +1038,24 @@ window.addEventListener('load', () => {
   const nameOverlay = document.getElementById('overlay-name');
   const nameInput = document.getElementById('player-name-input');
   const playBtn = document.getElementById('play-btn');
-  const closeBtn = document.getElementById('close-scoreboard-btn');
+
+  // Always show the callsign overlay — users must confirm their name every session
+  nameOverlay.style.display = 'flex';
+
+  // Pre-fill with saved name so returning users just press Play
+  let saved;
+  try { saved = localStorage.getItem('starshipPlayerName'); } catch (_) {}
+  if (saved) nameInput.value = saved;
 
   function confirmName() {
-    unlockAudio(); // first user gesture — unblocks audio for the whole session
     const name = nameInput.value.trim() || 'Pilot';
     try { localStorage.setItem('starshipPlayerName', name); } catch (_) {}
+    unlockAudio(); // user gesture — unblocks audio for the whole session
     nameOverlay.style.display = 'none';
   }
 
   playBtn.addEventListener('click', confirmName);
   nameInput.addEventListener('keydown', (e) => { if (e.code === 'Enter') confirmName(); });
-
-  // Play Again wired up in the game load listener below
-
-  let saved;
-  try { saved = localStorage.getItem('starshipPlayerName'); } catch (_) {}
-  if (saved) nameInput.value = saved;
-  nameInput.focus();
 });
 
 // --- Burger / pause menu setup ---
@@ -1139,6 +1139,8 @@ window.addEventListener('load', () => {
 
   // add the canvas to the DOM
   document.body.append(canvas);
+  // Fallback audio unlock — covers any interaction with the game canvas
+  canvas.addEventListener('pointerdown', () => unlockAudio(), { once: true });
 
   const game = new Game();
 
