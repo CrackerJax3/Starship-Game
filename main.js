@@ -3,7 +3,6 @@ import GameObject from './gameobject.js';
 import Particle from './particle.js';
 import Ship from './ship.js';
 import { submitScore, getTopScores } from './leaderboard.js';
-import { Share } from '@capacitor/share';
 import { playSound, setThrust, stopAllSounds, stopAllExcept } from './sounds.js';
 
 // PI_ON_180 is useful for converting degrees to radians,
@@ -15,8 +14,13 @@ const GROUND_LEVEL = 100;
 const canvas = document.createElement('canvas');
 const ctx = canvas.getContext('2d');
 let dpr = window.devicePixelRatio || 1;
-let appActive = true;    // false when app is backgrounded
+let appActive = true;    // false when tab is hidden
 let previousFrame = 0;   // last rAF timestamp
+
+document.addEventListener('visibilitychange', () => {
+  appActive = !document.hidden;
+  if (!document.hidden) previousFrame = 0;
+});
 
 // object to store all input
 const Input = {};
@@ -977,23 +981,11 @@ async function shareGame() {
   if (rank) text += ` — ranked #${rank} on the global leaderboard`;
   text += `! I bet you can't beat me!`;
 
-  try {
-    // Native Android/iOS share sheet via Capacitor
-    await Share.share({
-      title: 'Starship Lander',
-      text,
-      url: GAME_URL,
-      dialogTitle: 'Share with friends',
-    });
-  } catch {
-    // Fallback: Web Share API (some browsers)
-    if (navigator.share) {
-      navigator.share({ title: 'Starship Lander', text, url: GAME_URL }).catch(() => {});
-    } else {
-      // Last resort: copy to clipboard + toast
-      navigator.clipboard?.writeText(`${text}\n${GAME_URL}`).catch(() => {});
-      showToast('Link copied!');
-    }
+  if (navigator.share) {
+    navigator.share({ title: 'Starship Lander', text, url: GAME_URL }).catch(() => {});
+  } else {
+    navigator.clipboard?.writeText(`${text}\n${GAME_URL}`).catch(() => {});
+    showToast('Link copied!');
   }
 }
 
@@ -1050,7 +1042,7 @@ window.addEventListener('load', () => {
 
   function confirmName() {
     const name = nameInput.value.trim() || 'Pilot';
-    localStorage.setItem('starshipPlayerName', name);
+    try { localStorage.setItem('starshipPlayerName', name); } catch (_) {}
     nameOverlay.style.display = 'none';
   }
 
@@ -1059,7 +1051,8 @@ window.addEventListener('load', () => {
 
   // Play Again wired up in the game load listener below
 
-  const saved = localStorage.getItem('starshipPlayerName');
+  let saved;
+  try { saved = localStorage.getItem('starshipPlayerName'); } catch (_) {}
   if (saved) {
     nameOverlay.style.display = 'none';
   } else {
