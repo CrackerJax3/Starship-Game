@@ -267,9 +267,6 @@ class Game {
     this.objective.controlShip = this.ship;
     this.scene.add(this.ship);
     this.ship.addEventListener('update', this.ship.updateControl);
-    // Snap camera to ship so the scene is centred before the first frame
-    this.Camera.x = window.innerWidth  / 2 - this.ship.x;
-    this.Camera.y = window.innerHeight / 2 - this.ship.y;
     this.loadLeaderboard();
   }
 

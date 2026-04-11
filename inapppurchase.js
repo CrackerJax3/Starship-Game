@@ -66,24 +66,8 @@ export function initPurchases(onStatusChange) {
   }
 }
 
-// Wait up to `ms` milliseconds for the product to appear in the store.
-function waitForProduct(store, Platform, ms = 5000) {
-  return new Promise(resolve => {
-    const product = store.get(REMOVE_ADS_PRODUCT_ID, Platform.GOOGLE_PLAY);
-    if (product?.offers?.length) { resolve(product); return; }
-    const deadline = Date.now() + ms;
-    const check = setInterval(() => {
-      const p = store.get(REMOVE_ADS_PRODUCT_ID, Platform.GOOGLE_PLAY);
-      if (p?.offers?.length || Date.now() >= deadline) {
-        clearInterval(check);
-        resolve(p || null);
-      }
-    }, 300);
-  });
-}
-
-// Trigger the Google Play purchase sheet for remove-ads.
-// Returns a string describing the outcome (for UI feedback), or null on success.
+// Trigger the Google Play purchase sheet for remove_ads.
+// Returns a string describing the outcome (for UI feedback).
 export async function purchaseRemoveAds() {
   if (!Capacitor.isNativePlatform()) {
     return 'In-app purchases are only available in the Android app.';
@@ -93,16 +77,19 @@ export async function purchaseRemoveAds() {
   }
 
   const { store, Platform } = window.CdvPurchase;
+  const product = store.get(REMOVE_ADS_PRODUCT_ID, Platform.GOOGLE_PLAY);
 
-  const product = await waitForProduct(store, Platform, 5000);
   if (!product) {
-    return `Product "${REMOVE_ADS_PRODUCT_ID}" not found. Check that the product ID in Play Console matches exactly and the app is installed from the Play Store.`;
+    return 'Product not found. Make sure "remove_ads" is created and Active in Play Console, and the app has been uploaded to at least the Internal Testing track.';
+  }
+  if (!product.offers?.length) {
+    return 'No purchase offer available. The product may still be loading — try again in a moment.';
   }
 
   try {
     const err = await store.order(product.offers[0]);
     if (err) return `Purchase failed: ${err.message || err.code}`;
-    return null; // null = success; outcome handled by store.when() callbacks
+    return null; // null = success (purchase sheet opened, outcome handled by store.when())
   } catch (e) {
     return `Purchase error: ${e.message}`;
   }
