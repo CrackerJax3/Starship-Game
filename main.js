@@ -1139,46 +1139,57 @@ window.addEventListener('load', () => {
 
   // add the canvas to the DOM
   document.body.append(canvas);
-  // Fallback audio unlock — covers any interaction with the game canvas
-  canvas.addEventListener('pointerdown', () => unlockAudio(), { once: true });
 
-  const game = new Game();
+  // Wait for all sprite images to finish loading before starting —
+  // drawImage on an incomplete image is a no-op, so we'd see a blank scene.
+  const allImages = Object.values(Images);
+  let loaded = 0;
+  function startGame() {
+    loaded++;
+    if (loaded < allImages.length) return;
 
-  // Play Again button
-  document.getElementById('close-scoreboard-btn').addEventListener('click', () => {
-    hideScoreboard();
-    previousFrame = 0;
-    game.reset();
-  });
+    const game = new Game();
 
-  // Share buttons
-  document.getElementById('scoreboard-share-btn').addEventListener('click', shareGame);
-  document.getElementById('pause-share-btn').addEventListener('click', shareGame);
-
-  // Burger menu restart button
-  if (window._pauseRestartBtn) {
-    window._pauseRestartBtn.addEventListener('click', () => {
-      document.getElementById('overlay-pause').style.display = 'none';
+    // Play Again button
+    document.getElementById('close-scoreboard-btn').addEventListener('click', () => {
+      hideScoreboard();
+      previousFrame = 0;
       game.reset();
     });
-  }
-  // performance control/measurement
-  const MAX_FRAME = 100; // ensures that physics don't break on slow devices or when tabs are switched
-  // game loop (an Immediately Invoked Function Expression that returns a function inside the `requestAnimationFrame`)
-  window.requestAnimationFrame((function main(currentFrame) {
-    if (appActive) {
-      if (!overlayVisible()) {
-        // update (pass in `deltaTime`: the time in seconds since the last frame, restricted by an upper bound of 100ms)
-        game.Update(Math.min(currentFrame - previousFrame, MAX_FRAME) / 1000);
-      }
-      // render
-      game.Render();
-      // always advance previousFrame so deltaTime doesn't spike after resuming from pause
-      previousFrame = currentFrame;
+
+    // Share buttons
+    document.getElementById('scoreboard-share-btn').addEventListener('click', shareGame);
+    document.getElementById('pause-share-btn').addEventListener('click', shareGame);
+
+    // Burger menu restart button
+    if (window._pauseRestartBtn) {
+      window._pauseRestartBtn.addEventListener('click', () => {
+        document.getElementById('overlay-pause').style.display = 'none';
+        game.reset();
+      });
     }
-    // indirect recursion
-    window.requestAnimationFrame(main);
-  }));
+
+    const MAX_FRAME = 100;
+    window.requestAnimationFrame((function main(currentFrame) {
+      if (appActive) {
+        if (!overlayVisible()) {
+          game.Update(Math.min(currentFrame - previousFrame, MAX_FRAME) / 1000);
+        }
+        game.Render();
+        previousFrame = currentFrame;
+      }
+      window.requestAnimationFrame(main);
+    }));
+  }
+
+  allImages.forEach(img => {
+    if (img.complete && img.naturalWidth > 0) {
+      startGame();
+    } else {
+      img.addEventListener('load', startGame, { once: true });
+      img.addEventListener('error', startGame, { once: true }); // don't hang on broken images
+    }
+  });
 });
 
 // Ensure the joystick is positioned correctly on window resize

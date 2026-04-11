@@ -1,54 +1,76 @@
-// ─── Sound manager — Web Audio API only ──────────────────────────────────────
-// HTMLAudioElement.play() is unreliable across browsers for games.
-// AudioBufferSourceNode is the correct approach: load once, play many times.
+// ─── Sound manager — Web Audio API, context created on first user gesture ─────
 
+// Pre-fetch raw audio bytes at module load (no AudioContext needed yet).
+// By the time the user clicks Play, data is ready to decode immediately.
+const _pending = [
+  ['explosion',   './sounds/explosion.wav',   1.0],
+  ['starlink',    './sounds/starlink.wav',     0.8],
+  ['victory',     './sounds/victory.wav',      1.0],
+  ['worldrecord', './sounds/worldrecord.mp3',  1.0],
+  ['thrust',      './sounds/thrust.mp3',       1.0],
+];
+
+const _fetched = {}; // key → { arr: ArrayBuffer, volume }
+for (const [key, url, volume] of _pending) {
+  fetch(url)
+    .then(r => r.arrayBuffer())
+    .then(arr => { _fetched[key] = { arr, volume }; })
+    .catch(e => console.warn(`Audio prefetch "${key}" failed:`, e));
+}
+
+// ─── AudioContext — created only from a user-gesture handler ─────────────────
 let _ctx = null;
-const _buffers = {};
+const _buffers = {}; // key → { buf: AudioBuffer, volume }
 
-function _getCtx() {
-  if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)();
-  return _ctx;
+async function _decodeAll(ctx) {
+  await Promise.all(
+    Object.entries(_fetched).map(async ([key, { arr, volume }]) => {
+      try {
+        // slice() copies the buffer so decodeAudioData doesn't detach the original
+        _buffers[key] = { buf: await ctx.decodeAudioData(arr.slice(0)), volume };
+      } catch (e) {
+        console.warn(`Audio decode "${key}" failed:`, e);
+      }
+    })
+  );
 }
 
-async function _load(key, url, { volume = 1 } = {}) {
-  try {
-    const res = await fetch(url);
-    const arr = await res.arrayBuffer();
-    const ctx = _getCtx();
-    const buf = await ctx.decodeAudioData(arr);
-    _buffers[key] = { buf, volume };
-  } catch (e) {
-    console.warn(`Sound "${key}" failed to load:`, e);
-  }
+// Call this exactly once from a click/touch handler.
+// Creates the AudioContext in a user-gesture context so browsers allow it.
+export async function unlockAudio() {
+  if (_ctx) return;
+  _ctx = new (window.AudioContext || window.webkitAudioContext)();
+  // Decode whatever has been fetched so far; any late arrivals decode on demand.
+  await _decodeAll(_ctx);
 }
 
-// Preload all sounds at startup
-_load('explosion',   './sounds/explosion.wav',   { volume: 1.0  });
-_load('starlink',    './sounds/starlink.wav',     { volume: 0.8  });
-_load('victory',     './sounds/victory.wav',      { volume: 1.0  });
-_load('worldrecord', './sounds/worldrecord.mp3',  { volume: 1.0  });
-_load('thrust',      './sounds/thrust.mp3',       { volume: 1.0  });
-
-// ─── Unlock — call once from any user-gesture handler ────────────────────────
-let _unlocked = false;
-export function unlockAudio() {
-  if (_unlocked) return;
-  _unlocked = true;
-  const ctx = _getCtx();
-  // Resume AudioContext suspended by browser autoplay policy
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-}
-
-// ─── One-shot playback ────────────────────────────────────────────────────────
+// ─── One-shot sound ───────────────────────────────────────────────────────────
 export function playSound(key) {
+  if (!_ctx) return;
+  // If buffer not decoded yet (slow connection), decode on demand
   const entry = _buffers[key];
-  if (!entry) return;
-  const ctx = _getCtx();
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-  const gain = ctx.createGain();
+  if (!entry) {
+    const fetched = _fetched[key];
+    if (fetched) {
+      _ctx.decodeAudioData(fetched.arr.slice(0))
+        .then(buf => {
+          _buffers[key] = { buf, volume: fetched.volume };
+          _play(key);
+        })
+        .catch(() => {});
+    }
+    return;
+  }
+  _play(key);
+}
+
+function _play(key) {
+  const entry = _buffers[key];
+  if (!entry || !_ctx) return;
+  const gain = _ctx.createGain();
   gain.gain.value = entry.volume;
-  gain.connect(ctx.destination);
-  const src = ctx.createBufferSource();
+  gain.connect(_ctx.destination);
+  const src = _ctx.createBufferSource();
   src.buffer = entry.buf;
   src.connect(gain);
   src.start(0);
@@ -64,14 +86,13 @@ export function setThrust(active) {
   if (active === _thrusting) return;
   _thrusting = active;
   if (active) {
+    if (!_ctx) return;
     const entry = _buffers['thrust'];
     if (!entry) return;
-    const ctx = _getCtx();
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    _thrustGain = ctx.createGain();
+    _thrustGain = _ctx.createGain();
     _thrustGain.gain.value = THRUST_GAIN;
-    _thrustGain.connect(ctx.destination);
-    _thrustSource = ctx.createBufferSource();
+    _thrustGain.connect(_ctx.destination);
+    _thrustSource = _ctx.createBufferSource();
     _thrustSource.buffer = entry.buf;
     _thrustSource.loop = true;
     _thrustSource.connect(_thrustGain);
@@ -93,7 +114,6 @@ export function stopAllSounds() {
   setThrust(false);
 }
 
-export function stopAllExcept(key) {
+export function stopAllExcept(_key) {
   setThrust(false);
-  // One-shot sounds stop themselves; nothing else to do
 }
