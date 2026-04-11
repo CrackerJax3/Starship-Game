@@ -1,77 +1,78 @@
-// ─── Sound manager ────────────────────────────────────────────────────────────
+// ─── Sound manager — Web Audio API only ──────────────────────────────────────
+// HTMLAudioElement.play() is unreliable across browsers for games.
+// AudioBufferSourceNode is the correct approach: load once, play many times.
 
-function load(src, { loop = false, volume = 1 } = {}) {
-  const audio = new Audio(src);
-  audio.preload = 'auto';
-  audio.loop = loop;
-  audio.volume = volume;
-  return audio;
+let _ctx = null;
+const _buffers = {};
+
+function _getCtx() {
+  if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)();
+  return _ctx;
 }
 
-const SFX = {
-  explosion:   load('./sounds/explosion.wav',    { volume: 1.0 }),
-  starlink:    load('./sounds/starlink.wav',      { volume: 0.8 }),
-  victory:     load('./sounds/victory.wav',       { volume: 1.0 }),
-  worldrecord: load('./sounds/worldrecord.mp3',  { volume: 1.0 }),
-};
-
-// ─── Thrust — Web Audio API so gain can exceed 1.0 ────────────────────────────
-let _audioCtx = null;
-let _thrustSource = null;
-let _thrustGain = null;
-let _thrustBuffer = null;
-const THRUST_GAIN = 12.0;
-
-function _getAudioCtx() {
-  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return _audioCtx;
+async function _load(key, url, { volume = 1 } = {}) {
+  try {
+    const res = await fetch(url);
+    const arr = await res.arrayBuffer();
+    const ctx = _getCtx();
+    const buf = await ctx.decodeAudioData(arr);
+    _buffers[key] = { buf, volume };
+  } catch (e) {
+    console.warn(`Sound "${key}" failed to load:`, e);
+  }
 }
 
-fetch('./sounds/thrust.mp3')
-  .then(r => r.arrayBuffer())
-  .then(buf => _getAudioCtx().decodeAudioData(buf))
-  .then(decoded => { _thrustBuffer = decoded; })
-  .catch(() => {});
+// Preload all sounds at startup
+_load('explosion',   './sounds/explosion.wav',   { volume: 1.0  });
+_load('starlink',    './sounds/starlink.wav',     { volume: 0.8  });
+_load('victory',     './sounds/victory.wav',      { volume: 1.0  });
+_load('worldrecord', './sounds/worldrecord.mp3',  { volume: 1.0  });
+_load('thrust',      './sounds/thrust.mp3',       { volume: 1.0  });
 
-// ─── Audio unlock — must be called from a user-gesture handler ────────────────
+// ─── Unlock — call once from any user-gesture handler ────────────────────────
 let _unlocked = false;
 export function unlockAudio() {
   if (_unlocked) return;
   _unlocked = true;
-  const ctx = _getAudioCtx();
+  const ctx = _getCtx();
+  // Resume AudioContext suspended by browser autoplay policy
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-  // Prime each HTML Audio element with a silent play so the browser allows
-  // future play() calls outside of gesture handlers
-  Object.values(SFX).forEach(s => {
-    const vol = s.volume;
-    s.volume = 0;
-    s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(() => {}).finally(() => { s.volume = vol; });
-  });
 }
 
-// One-shot: rewind and play
+// ─── One-shot playback ────────────────────────────────────────────────────────
 export function playSound(key) {
-  const s = SFX[key];
-  if (!s) return;
-  s.currentTime = 0;
-  s.play().catch(() => {});
+  const entry = _buffers[key];
+  if (!entry) return;
+  const ctx = _getCtx();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  const gain = ctx.createGain();
+  gain.gain.value = entry.volume;
+  gain.connect(ctx.destination);
+  const src = ctx.createBufferSource();
+  src.buffer = entry.buf;
+  src.connect(gain);
+  src.start(0);
 }
 
-// Looping thrust — Web Audio loop with gain > 1.0
+// ─── Looping thrust ───────────────────────────────────────────────────────────
+const THRUST_GAIN = 4.0;
 let _thrusting = false;
+let _thrustSource = null;
+let _thrustGain = null;
 
 export function setThrust(active) {
   if (active === _thrusting) return;
   _thrusting = active;
   if (active) {
-    if (!_thrustBuffer) return;
-    const ctx = _getAudioCtx();
-    if (ctx.state === 'suspended') ctx.resume();
+    const entry = _buffers['thrust'];
+    if (!entry) return;
+    const ctx = _getCtx();
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     _thrustGain = ctx.createGain();
     _thrustGain.gain.value = THRUST_GAIN;
     _thrustGain.connect(ctx.destination);
     _thrustSource = ctx.createBufferSource();
-    _thrustSource.buffer = _thrustBuffer;
+    _thrustSource.buffer = entry.buf;
     _thrustSource.loop = true;
     _thrustSource.connect(_thrustGain);
     _thrustSource.start(0);
@@ -88,16 +89,11 @@ export function setThrust(active) {
   }
 }
 
-// Stop all sounds except the one with the given key (e.g. keep explosion audible on crash)
-export function stopAllExcept(key) {
-  setThrust(false);
-  Object.entries(SFX).forEach(([k, s]) => {
-    if (k !== key) { s.pause(); s.currentTime = 0; }
-  });
-}
-
-// Stop everything (e.g. on win or reset)
 export function stopAllSounds() {
   setThrust(false);
-  Object.values(SFX).forEach(s => { s.pause(); s.currentTime = 0; });
+}
+
+export function stopAllExcept(key) {
+  setThrust(false);
+  // One-shot sounds stop themselves; nothing else to do
 }
