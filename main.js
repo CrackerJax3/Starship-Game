@@ -3,7 +3,7 @@ import GameObject from './gameobject.js';
 import Particle from './particle.js';
 import Ship from './ship.js';
 import { submitScore, getTopScores } from './leaderboard.js';
-import { playSound, setThrust, stopAllSounds, stopAllExcept } from './sounds.js';
+import { playSound, setThrust, stopAllSounds, stopAllExcept, unlockAudio } from './sounds.js';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use
@@ -1041,6 +1041,7 @@ window.addEventListener('load', () => {
   const closeBtn = document.getElementById('close-scoreboard-btn');
 
   function confirmName() {
+    unlockAudio(); // first user gesture — unblocks audio for the whole session
     const name = nameInput.value.trim() || 'Pilot';
     try { localStorage.setItem('starshipPlayerName', name); } catch (_) {}
     nameOverlay.style.display = 'none';
@@ -1053,11 +1054,8 @@ window.addEventListener('load', () => {
 
   let saved;
   try { saved = localStorage.getItem('starshipPlayerName'); } catch (_) {}
-  if (saved) {
-    nameOverlay.style.display = 'none';
-  } else {
-    nameInput.focus();
-  }
+  if (saved) nameInput.value = saved;
+  nameInput.focus();
 });
 
 // --- Burger / pause menu setup ---

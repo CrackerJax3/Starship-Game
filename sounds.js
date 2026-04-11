@@ -33,24 +33,21 @@ fetch('./sounds/thrust.mp3')
   .then(decoded => { _thrustBuffer = decoded; })
   .catch(() => {});
 
-// ─── Audio unlock (mobile requires a user gesture before any sound plays) ─────
+// ─── Audio unlock — must be called from a user-gesture handler ────────────────
 let _unlocked = false;
-function _unlock() {
+export function unlockAudio() {
   if (_unlocked) return;
   _unlocked = true;
-  // Resume Web Audio context (suspended by default on mobile until gesture)
   const ctx = _getAudioCtx();
-  if (ctx.state === 'suspended') ctx.resume();
-  // Prime HTML Audio elements
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  // Prime each HTML Audio element with a silent play so the browser allows
+  // future play() calls outside of gesture handlers
   Object.values(SFX).forEach(s => {
     const vol = s.volume;
     s.volume = 0;
-    const p = s.play();
-    if (p) p.then(() => { s.pause(); s.currentTime = 0; s.volume = vol; }).catch(() => { s.volume = vol; });
+    s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(() => {}).finally(() => { s.volume = vol; });
   });
 }
-document.addEventListener('touchstart', _unlock, { once: true, passive: true });
-document.addEventListener('mousedown',  _unlock, { once: true });
 
 // One-shot: rewind and play
 export function playSound(key) {
