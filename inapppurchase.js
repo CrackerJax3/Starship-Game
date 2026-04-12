@@ -13,9 +13,9 @@ export function isAdsRemoved() {
   return localStorage.getItem(STORAGE_KEY) === 'true';
 }
 
-// Exposed so the button handler can check product readiness
-let _productReady = false;
-export function isProductReady() { return _productReady; }
+// Holds the product object once it's loaded from Google Play
+let _loadedProduct = null;
+let _storeInitError = null;
 
 // Call once on app start. onStatusChange fires whenever purchase state changes.
 export function initPurchases(onStatusChange) {
@@ -36,8 +36,8 @@ export function initPurchases(onStatusChange) {
 
     store.when()
       .productUpdated(product => {
-        if (product.id === REMOVE_ADS_PRODUCT_ID) {
-          _productReady = true;
+        if (product.id === REMOVE_ADS_PRODUCT_ID && product.offers?.length) {
+          _loadedProduct = product;
         }
       })
       .approved(transaction => transaction.verify())
@@ -49,14 +49,16 @@ export function initPurchases(onStatusChange) {
         }
       })
       .error(err => {
+        _storeInitError = `${err.code}: ${err.message}`;
         console.warn('IAP store error:', err.code, err.message);
       });
 
-    // initialize() silently restores any existing purchase from the user's
-    // Google account — no separate restore button needed.
     store.initialize([Platform.GOOGLE_PLAY])
       .then(() => console.log('IAP store initialized'))
-      .catch(e => console.warn('IAP store init failed:', e));
+      .catch(e => {
+        _storeInitError = String(e);
+        console.warn('IAP store init failed:', e);
+      });
   };
 
   if (window.CdvPurchase) {
@@ -66,24 +68,22 @@ export function initPurchases(onStatusChange) {
   }
 }
 
-// Poll until the product is loaded (store.initialize is async and can take a few seconds).
-async function waitForProduct(store, Platform, ms = 8000) {
+// Wait up to `ms` ms for the product to appear via productUpdated callback.
+function waitForProduct(ms = 10000) {
   return new Promise(resolve => {
-    const product = store.get(REMOVE_ADS_PRODUCT_ID, Platform.GOOGLE_PLAY);
-    if (product?.offers?.length) { resolve(product); return; }
+    if (_loadedProduct) { resolve(_loadedProduct); return; }
     const deadline = Date.now() + ms;
     const check = setInterval(() => {
-      const p = store.get(REMOVE_ADS_PRODUCT_ID, Platform.GOOGLE_PLAY);
-      if (p?.offers?.length || Date.now() >= deadline) {
+      if (_loadedProduct || Date.now() >= deadline) {
         clearInterval(check);
-        resolve(p?.offers?.length ? p : null);
+        resolve(_loadedProduct);
       }
-    }, 300);
+    }, 250);
   });
 }
 
 // Trigger the Google Play purchase sheet for remove_ads.
-// Returns a string describing the outcome (for UI feedback).
+// Returns a string describing the outcome (for UI feedback), or null on success.
 export async function purchaseRemoveAds() {
   if (!Capacitor.isNativePlatform()) {
     return 'In-app purchases are only available in the Android app.';
@@ -92,17 +92,18 @@ export async function purchaseRemoveAds() {
     return 'Purchase plugin not available. Try reinstalling the app.';
   }
 
-  const { store, Platform } = window.CdvPurchase;
-  const product = await waitForProduct(store, Platform);
+  const product = await waitForProduct();
 
   if (!product) {
-    return 'Product not found. Make sure "remove_ads" is Active in Play Console, and the app is installed from the Play Store (not sideloaded).';
+    const detail = _storeInitError ? ` (${_storeInitError})` : '';
+    return `Product not available${detail}. Make sure the app is installed from the Play Store and try again.`;
   }
 
   try {
+    const { store } = window.CdvPurchase;
     const err = await store.order(product.offers[0]);
     if (err) return `Purchase failed: ${err.message || err.code}`;
-    return null; // null = success (purchase sheet opened, outcome handled by store.when())
+    return null; // null = success (outcome handled by store.when() callbacks)
   } catch (e) {
     return `Purchase error: ${e.message}`;
   }
