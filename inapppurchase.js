@@ -79,8 +79,8 @@ export function initPurchases(onStatusChange) {
   }
 }
 
-// Poll up to 10 s for the product to load
-function waitForProduct(ms = 10000) {
+// Poll up to 30 s for the product to load
+function waitForProduct(ms = 30000) {
   return new Promise(resolve => {
     if (_loadedProduct) { resolve(_loadedProduct); return; }
     const deadline = Date.now() + ms;

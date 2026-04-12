@@ -8,8 +8,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme"
-        android:resizeableActivity="true">
+        android:theme="@style/AppTheme">
 
         <!-- ── AdMob ── Replace value with your real App ID from admob.google.com ── -->
         <!-- Using Google's official test App ID until a real one is configured -->
@@ -23,6 +22,8 @@
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustNothing"
             android:name=".MainActivity"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
