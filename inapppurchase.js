@@ -66,6 +66,22 @@ export function initPurchases(onStatusChange) {
   }
 }
 
+// Poll until the product is loaded (store.initialize is async and can take a few seconds).
+async function waitForProduct(store, Platform, ms = 8000) {
+  return new Promise(resolve => {
+    const product = store.get(REMOVE_ADS_PRODUCT_ID, Platform.GOOGLE_PLAY);
+    if (product?.offers?.length) { resolve(product); return; }
+    const deadline = Date.now() + ms;
+    const check = setInterval(() => {
+      const p = store.get(REMOVE_ADS_PRODUCT_ID, Platform.GOOGLE_PLAY);
+      if (p?.offers?.length || Date.now() >= deadline) {
+        clearInterval(check);
+        resolve(p?.offers?.length ? p : null);
+      }
+    }, 300);
+  });
+}
+
 // Trigger the Google Play purchase sheet for remove_ads.
 // Returns a string describing the outcome (for UI feedback).
 export async function purchaseRemoveAds() {
@@ -77,13 +93,10 @@ export async function purchaseRemoveAds() {
   }
 
   const { store, Platform } = window.CdvPurchase;
-  const product = store.get(REMOVE_ADS_PRODUCT_ID, Platform.GOOGLE_PLAY);
+  const product = await waitForProduct(store, Platform);
 
   if (!product) {
-    return 'Product not found. Make sure "remove_ads" is created and Active in Play Console, and the app has been uploaded to at least the Internal Testing track.';
-  }
-  if (!product.offers?.length) {
-    return 'No purchase offer available. The product may still be loading — try again in a moment.';
+    return 'Product not found. Make sure "remove_ads" is Active in Play Console, and the app is installed from the Play Store (not sideloaded).';
   }
 
   try {

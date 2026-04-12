@@ -1011,7 +1011,7 @@ function renderConfetti(pieces) {
 }
 
 // --- Share ---
-const GAME_URL = 'https://spacex-starship-lander.pages.dev/';
+const GAME_URL = 'https://play.google.com/store/apps/details?id=com.crackerjax3.starshiplander&pcampaignid=web_share';
 
 async function shareGame() {
   const name = localStorage.getItem('starshipPlayerName') || 'Anonymous';
