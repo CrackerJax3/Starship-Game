@@ -1,40 +1,50 @@
-# Unofficial SpaceX Starship Lander Game
+# Starship Lander
 
-In the genre of [Lunar Lander](https://en.wikipedia.org/wiki/Lunar_Lander_(video_game_genre)) games we simulate launching the SpaceX Starship to orbit,
-deploying Starlink satellites and returning both the booster and upper stage to Earth 
-to be caught on the launch pad.  
+A Lunar Lander-style game where you launch a Starship to orbit, deploy Starlink satellites, and bring both the booster and the upper stage back to be caught on the launch tower. Attempt the landing flip maneuver, race the clock, and climb the global leaderboard.
 
-**Try it live here:** https://spacex-starship-lander.pages.dev/
+Created by **Jackson Yuen** ([SUBOTIX](https://github.com/CrackerJax3)).
 
-- Attempt the famous landing flip maneuver!
-- Validate the [50% chance](https://www.dailymail.co.uk/sciencetech/article-11858339/Elon-Musk-says-theres-50-chance-SpaceXs-Starship-rocket-EXPLODE-launch.html)  of explosion 🚀🛰🔥 theory.
+> Unofficial fan game. Not affiliated with, endorsed by, or connected to SpaceX. SpaceX and Starship are trademarks of Space Exploration Technologies Corp.
 
-Original version by https://github.com/Matt-DESTROYER as a Replit bounty project.
+<img src="docs/screenshot.png" alt="Screenshot showing the Starship launching" title="Starship Lander" width="640">
 
-Fork, remix and make your own game!
-Let's have fun making games!
-
-<a href="https://x.com/arex"><img src="https://img.shields.io/twitter/follow/arex" alt="Follow @arex"></a>
-  [Postmeta.com](https://postmeta.com)
-
-### Features
+## Features
 
 - Booster and Starship separation
-- Starlink launch
-- Land both stages to win!
-  
-<img src="https://raw.githubusercontent.com/areyasouka/spacex-starship-lander/main/docs/screenshot.png" alt="Screenshot showing Starship rocket launch" title="Starship Lander Game " width="640">
+- Starlink deployment checkpoint and booster-catch checkpoint
+- Land both stages to win
+- Global leaderboard with best times and flight counts
+- Android app (Capacitor) with AdMob ads and a one-time "remove ads" purchase
 
-### Build
+## Run it
 
 ```sh
 npm i
 npm run dev
 ```
 
-### Todo
+Android build:
 
-- use state transitions for stages, cleanup add/remove EventListeners
-- extract input/control from ship class
-- add instructions for mobile/touch ux (maybe too easy tho)
-- add sound fx
+```sh
+npm run build
+npx cap sync android
+cd android && ./gradlew bundleRelease
+```
+
+## Setup notes
+
+- **Leaderboard rules:** paste `firestore.rules` into Firebase console, Firestore Database, Rules. It rejects junk names and impossible times. Keep `MIN_TIME_MS` in `leaderboard.js` and the 10000 in the rules in sync.
+- **Analytics:** create a Measurement Protocol API secret in GA4 (Admin, Data streams, your stream) and set `API_SECRET` in `analytics.js`. Until then analytics does nothing.
+- **Ads:** set `USE_TEST_ADS = true` in `admob.js` while developing.
+
+## Origins
+
+The project began from an open-source Starship lander prototype by Matt-DESTROYER (a Replit bounty project). The game as it stands today is largely original work.
+
+## Todo
+
+- Use state transitions for stages; clean up add/remove EventListeners
+- Extract input/control from the ship class
+- Add instructions for mobile/touch
+- Cosmetic purchases and a web-portal build
+- iOS build

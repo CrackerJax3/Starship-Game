@@ -1,0 +1,26 @@
+rules_version = '2';
+
+// Deploy: Firebase console -> Firestore Database -> Rules, paste this file,
+// or `firebase deploy --only firestore:rules` if you use the Firebase CLI.
+//
+// These rules stop junk and impossible times from being written.
+// They cannot stop a determined cheater who submits a believable time;
+// that needs server-side validation (a Cloud Function) later.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /scores/{scoreId} {
+      allow read: if true;
+
+      allow create: if request.resource.data.keys().hasOnly(['name', 'time', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 20
+        && request.resource.data.time is int
+        && request.resource.data.time >= 10000      // keep in sync with MIN_TIME_MS
+        && request.resource.data.time <= 3600000    // keep in sync with MAX_TIME_MS
+        && request.resource.data.createdAt is int;
+
+      allow update, delete: if false;
+    }
+  }
+}

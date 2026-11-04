@@ -1,21 +1,72 @@
 import { Capacitor } from '@capacitor/core';
+import { track } from './analytics.js';
 
 export const REMOVE_ADS_PRODUCT_ID = 'remove_ads';
 const STORAGE_KEY = 'adsRemoved';
 
-export function isAdsRemoved() {
-  return localStorage.getItem(STORAGE_KEY) === 'true';
+// Friendly text shown to players. Technical detail goes to the console and
+// to analytics, never to the player.
+const MSG = {
+  web: 'Purchases are only available in the Android app for now.',
+  storeDown: 'The store isn\'t available right now. Check your connection and try again in a moment.',
+  notAvailable: 'This purchase isn\'t available right now. Please try again later.',
+  failed: 'Something went wrong with the purchase. Please try again.',
+};
+
+// ── Ownership ────────────────────────────────────────────────────────────────
+// The Play Store is the source of truth. localStorage is only a fast-start
+// cache so paying players never see an ad while the store is still loading.
+// The cache is reconciled against the store after it initialises, so a
+// refund or a hand-edited value is corrected, and a reinstall is restored
+// automatically from the player's Google account.
+let _owned = false;
+if (Capacitor.isNativePlatform()) {
+  try { _owned = localStorage.getItem(STORAGE_KEY) === 'true'; } catch { /* ignore */ }
 }
 
-// Diagnostic state — lets purchaseRemoveAds report exactly what went wrong
-let _storeRef = null;           // set once store is available
+export function isAdsRemoved() {
+  return _owned;
+}
+
+let _onChange = null;
+
+function setOwned(value) {
+  if (_owned === value) return;
+  _owned = value;
+  try {
+    if (value) localStorage.setItem(STORAGE_KEY, 'true');
+    else localStorage.removeItem(STORAGE_KEY);
+  } catch { /* ignore */ }
+  _onChange?.();
+}
+
+// ── Store state (diagnostics only; never shown to players) ──────────────────
+let _storeRef = null;
 let _platformRef = null;
 let _storeInitialized = false;
 let _storeInitError = null;
-let _loadedProduct = null;      // set by productUpdated when offers are present
-let _productUpdatedCount = 0;   // how many times productUpdated fired (any product)
+let _loadedProduct = null;
+
+function productOwned(product) {
+  if (!product) return false;
+  return Boolean(product.owned || _storeRef?.owned?.(product));
+}
+
+// Compare the cached flag with what the store says.
+// `final` is true once the store has had time to load receipts: only then do we
+// revoke, and only if the product is known and clearly not owned.
+function reconcile(final = false) {
+  if (!_storeRef) return;
+  const product = _storeRef.get(REMOVE_ADS_PRODUCT_ID, _platformRef.GOOGLE_PLAY);
+  if (productOwned(product)) {
+    setOwned(true);
+  } else if (final && _storeInitialized && product?.offers?.length) {
+    setOwned(false);
+  }
+}
 
 export function initPurchases(onStatusChange) {
+  _onChange = onStatusChange;
   if (!Capacitor.isNativePlatform()) return;
 
   const init = () => {
@@ -33,40 +84,40 @@ export function initPurchases(onStatusChange) {
       platform: Platform.GOOGLE_PLAY,
     }]);
 
-    store.when()
-      .productUpdated(product => {
-        _productUpdatedCount++;
-        console.log(`IAP productUpdated: id=${product.id} state=${product.state} offers=${product.offers?.length ?? 0}`);
-        if (product.id === REMOVE_ADS_PRODUCT_ID) {
-          // Accept even if offers is empty — store the product so we can inspect it
-          _loadedProduct = product;
+    const when = store.when();
+    when
+      .productUpdated((product) => {
+        if (product.id !== REMOVE_ADS_PRODUCT_ID) return;
+        _loadedProduct = product;
+        if (productOwned(product)) setOwned(true);
+      })
+      .approved((transaction) => transaction.verify())
+      .verified((receipt) => receipt.finish())
+      .finished((transaction) => {
+        if (transaction.products.some((p) => p.id === REMOVE_ADS_PRODUCT_ID)) {
+          const firstTime = !_owned;
+          setOwned(true);
+          if (firstTime) track('iap_complete', { product: REMOVE_ADS_PRODUCT_ID });
         }
       })
-      .approved(transaction => transaction.verify())
-      .verified(receipt => receipt.finish())
-      .finished(transaction => {
-        if (transaction.products.some(p => p.id === REMOVE_ADS_PRODUCT_ID)) {
-          localStorage.setItem(STORAGE_KEY, 'true');
-          onStatusChange?.();
-        }
-      })
-      .error(err => {
+      .error((err) => {
         _storeInitError = `[${err.code}] ${err.message}`;
         console.warn('IAP store error:', err.code, err.message);
       });
 
+    // Once receipts are loaded, make the cached flag match the store.
+    when.receiptsReady?.(() => setTimeout(() => reconcile(true), 1500));
+
     store.initialize([Platform.GOOGLE_PLAY])
       .then(() => {
         _storeInitialized = true;
-        console.log('IAP store initialized');
-        // Also try store.get() as a fallback if productUpdated didn't fire with offers
         const p = store.get(REMOVE_ADS_PRODUCT_ID, Platform.GOOGLE_PLAY);
-        if (p && !_loadedProduct) {
-          _loadedProduct = p;
-          console.log(`IAP fallback store.get: state=${p.state} offers=${p.offers?.length ?? 0}`);
-        }
+        if (p && !_loadedProduct) _loadedProduct = p;
+        reconcile(false);
+        // Fallback in case receiptsReady never fires on this plugin version.
+        setTimeout(() => reconcile(true), 8000);
       })
-      .catch(e => {
+      .catch((e) => {
         _storeInitError = String(e);
         console.warn('IAP store init failed:', e);
       });
@@ -79,13 +130,13 @@ export function initPurchases(onStatusChange) {
   }
 }
 
-// Poll up to 30 s for the product to load
-function waitForProduct(ms = 30000) {
-  return new Promise(resolve => {
-    if (_loadedProduct) { resolve(_loadedProduct); return; }
+// Wait for the product to load (shorter than before so the button never feels stuck)
+function waitForProduct(ms = 8000) {
+  return new Promise((resolve) => {
+    if (_loadedProduct?.offers?.length) { resolve(_loadedProduct); return; }
     const deadline = Date.now() + ms;
     const check = setInterval(() => {
-      if (_loadedProduct || Date.now() >= deadline) {
+      if (_loadedProduct?.offers?.length || Date.now() >= deadline) {
         clearInterval(check);
         resolve(_loadedProduct);
       }
@@ -93,37 +144,47 @@ function waitForProduct(ms = 30000) {
   });
 }
 
+// Returns null when there is nothing to tell the player (success, or they
+// simply cancelled), otherwise a short friendly message.
 export async function purchaseRemoveAds() {
-  if (!Capacitor.isNativePlatform()) {
-    return 'In-app purchases are only available in the Android app.';
-  }
-  if (!window.CdvPurchase) {
-    return 'Purchase plugin (CdvPurchase) not found. Try reinstalling the app.';
+  if (!Capacitor.isNativePlatform()) return MSG.web;
+  if (!window.CdvPurchase || !_storeRef) {
+    track('iap_fail', { reason: 'plugin_missing' });
+    return MSG.storeDown;
   }
 
+  track('iap_start', { product: REMOVE_ADS_PRODUCT_ID });
   const product = await waitForProduct();
 
+  // Already owned (e.g. restored just now): nothing to buy.
+  if (productOwned(product)) {
+    setOwned(true);
+    return null;
+  }
+
   if (!product?.offers?.length) {
-    // Build a detailed diagnostic message
-    let why = '';
-    if (_storeInitError)         why = `Store error: ${_storeInitError}`;
-    else if (!_storeInitialized) why = 'Store did not finish initializing in 10 s.';
-    else if (product) {
-      // We have a product object but no offers — inspect its state
-      why = `Product found (state: "${product.state}", offers: ${product.offers?.length ?? 0}). `
-          + 'It may still be in Draft or not yet approved in Play Console.';
-    } else {
-      why = `store.get() returned nothing after ${_productUpdatedCount} productUpdated event(s). `
-          + 'Check that the package name and product ID match exactly in Play Console.';
-    }
-    return `Cannot purchase: ${why}`;
+    const reason = _storeInitError
+      || (!_storeInitialized ? 'store_not_initialized' : `product_unavailable_state_${product?.state ?? 'none'}`);
+    console.warn('IAP unavailable:', reason);
+    track('iap_fail', { reason: String(reason).slice(0, 90) });
+    return _storeInitialized ? MSG.notAvailable : MSG.storeDown;
   }
 
   try {
     const err = await _storeRef.order(product.offers[0]);
-    if (err) return `Purchase failed: ${err.message || err.code}`;
+    if (err) {
+      if (err.code === window.CdvPurchase.ErrorCode?.PAYMENT_CANCELLED) {
+        track('iap_cancel', { product: REMOVE_ADS_PRODUCT_ID });
+        return null; // player backed out on purpose; say nothing
+      }
+      console.warn('IAP order error:', err.code, err.message);
+      track('iap_fail', { reason: `order_${err.code}` });
+      return MSG.failed;
+    }
     return null;
   } catch (e) {
-    return `Purchase error: ${e.message}`;
+    console.warn('IAP order exception:', e);
+    track('iap_fail', { reason: 'order_exception' });
+    return MSG.failed;
   }
 }

@@ -3,7 +3,10 @@ import GameObject from './gameobject.js';
 import Particle from './particle.js';
 import Ship from './ship.js';
 import { submitScore, getTopScores } from './leaderboard.js';
-import { initAdMob, showInterstitialAd, showRewardedAd } from './admob.js';
+import {
+  initAdMob, showInterstitialAd, showRewardedAd, recordWin, shouldShowInterstitial, shouldOfferRewarded,
+} from './admob.js';
+import { track, setAnalyticsDefaults } from './analytics.js';
 import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
@@ -441,6 +444,11 @@ class Game {
   onCrash() {
     this.objective.controlShip = null; // prevent engineFiring from re-triggering thrust sound this frame
     window._deathCount = (window._deathCount || 0) + 1;
+    track('run_crash', {
+      death_count: window._deathCount,
+      objective: String(this.objective.name).slice(0, 40),
+      mission_ms: Math.round(this.missionTime),
+    });
 
     if (isAdsRemoved()) {
       // Ad-free users: no overlay, waivers consumed automatically in doReset()
@@ -448,11 +456,13 @@ class Game {
       return;
     }
 
-    // Every other failure (2nd, 4th, 6th…): prompt user to watch ad
-    if (window._deathCount % 2 === 0) {
+    // Offer a rewarded continue only occasionally, and only if a video is already loaded
+    if (shouldOfferRewarded(window._deathCount)) {
+      track('ad_rewarded_offered', { death_count: window._deathCount });
       const continueOverlay = document.getElementById('overlay-continue');
       if (continueOverlay) continueOverlay.style.display = 'flex';
       window._continueWatchAd = () => {
+        track('ad_rewarded_accepted');
         if (continueOverlay) continueOverlay.style.display = 'none';
         adPlaying = true;
         const adOverlay = document.getElementById('overlay-ad-loading');
@@ -467,6 +477,7 @@ class Game {
         showRewardedAd().then(finishAd).catch(() => finishAd(false));
       };
       window._continueRestart = () => {
+        track('ad_rewarded_declined');
         if (continueOverlay) continueOverlay.style.display = 'none';
         this.reset();
       };
@@ -505,6 +516,7 @@ class Game {
         if (!this.launched) {
           this.launched = true;
           this.missionStartTime = performance.now();
+          track('run_start');
           // move and rotate the ship slightly
           //this.ship.x = -20;
           this.ship.rotation = -91;
@@ -578,6 +590,7 @@ class Game {
                   game.ship.addEventListener('update', game.ship.updateControl);
                   // Checkpoint: Starlinks deployed, camera now on booster
                   game.checkpointInSpace = true;
+                  track('checkpoint', { stage: 'starlink_deployed', mission_ms: Math.round(game.missionTime) });
                   game.checkpointTime = game.missionTime;
                   game.checkpointText = 'Checkpoint saved!';
                   game.checkpointTextTimer = 3000;
@@ -608,6 +621,7 @@ class Game {
             this.objective.x = 0;
             this.objective.y = -131;
             this.checkpointBoosterLanded = true;
+            track('checkpoint', { stage: 'booster_landed', mission_ms: Math.round(this.missionTime) });
             this.checkpointTime = this.missionTime;
             this.checkpointText = 'Checkpoint saved! Booster landed.';
             this.checkpointTextTimer = 3000;
@@ -683,6 +697,11 @@ class Game {
           stopAllSounds();
           playSound('victory');
           const finalTime = this.missionTime + this.penaltyMs;
+          track('run_win', {
+            final_ms: Math.round(finalTime),
+            penalty_ms: Math.round(this.penaltyMs),
+            death_count: window._deathCount || 0,
+          });
           if (this.bestTime === null || finalTime < this.bestTime) {
             this.bestTime = finalTime;
             localStorage.setItem('bestTime', this.bestTime);
@@ -1014,6 +1033,7 @@ function renderConfetti(pieces) {
 const GAME_URL = 'https://play.google.com/store/apps/details?id=com.crackerjax3.starshiplander&pcampaignid=web_share';
 
 async function shareGame() {
+  track('share_click');
   const name = localStorage.getItem('starshipPlayerName') || 'Anonymous';
   const bestMs = parseFloat(localStorage.getItem('bestTime'));
   const rank = window._shareRank || null;
@@ -1043,12 +1063,12 @@ async function shareGame() {
   }
 }
 
-function showToast(msg) {
+function showToast(msg, ms = 2500) {
   const t = document.createElement('div');
   t.textContent = msg;
-  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:10px 20px;border-radius:20px;font-family:Trebuchet MS,sans-serif;font-size:0.9em;z-index:99;pointer-events:none';
+  t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:#fff;padding:10px 20px;border-radius:20px;font-family:Trebuchet MS,sans-serif;font-size:0.9em;z-index:99;pointer-events:none;max-width:80%;text-align:center';
   document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
+  setTimeout(() => t.remove(), ms);
 }
 
 // --- Scoreboard helpers ---
@@ -1057,6 +1077,15 @@ function formatTime(ms) {
   const m = Math.floor(totalSecs / 60);
   const s = (totalSecs % 60).toFixed(2).padStart(5, '0');
   return `${m}:${s}`;
+}
+
+// Build a leaderboard row with textContent so player names can never inject HTML.
+function fillScoreRow(tr, rank, entry) {
+  [rank, entry.name, formatTime(entry.time), entry.flights ?? 1].forEach((value) => {
+    const td = document.createElement('td');
+    td.textContent = String(value);
+    tr.appendChild(td);
+  });
 }
 
 function showScoreboard(scores, myTime, isWorldRecord) {
@@ -1076,7 +1105,7 @@ function showScoreboard(scores, myTime, isWorldRecord) {
     scores.forEach((entry, i) => {
       const tr = document.createElement('tr');
       if (Math.round(entry.time) === Math.round(myTime)) tr.classList.add('highlight');
-      tr.innerHTML = `<td>${i + 1}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td><td>${entry.flights ?? 1}</td>`;
+      fillScoreRow(tr, i + 1, entry);
       body.appendChild(tr);
     });
   }
@@ -1097,6 +1126,7 @@ window.addEventListener('load', () => {
   function confirmName() {
     const name = nameInput.value.trim() || 'Pilot';
     localStorage.setItem('starshipPlayerName', name);
+    track('name_set');
     nameOverlay.style.display = 'none';
   }
 
@@ -1138,6 +1168,7 @@ window.addEventListener('load', () => {
   updateNoAdsBtn();
 
   async function openPauseMenu() {
+    track('leaderboard_open');
     const status = document.getElementById('pause-scoreboard-status');
     const body = document.getElementById('pause-scoreboard-body');
     status.textContent = 'Loading scores…';
@@ -1155,7 +1186,7 @@ window.addEventListener('load', () => {
           tr.classList.add('highlight');
           window._shareRank = i + 1; // store rank for share button
         }
-        tr.innerHTML = `<td>${i + 1}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td><td>${entry.flights ?? 1}</td>`;
+        fillScoreRow(tr, i + 1, entry);
         body.appendChild(tr);
       });
     }
@@ -1195,10 +1226,8 @@ window.addEventListener('load', () => {
     if (isAdsRemoved()) return;
     noAdsBtn.disabled = true;
     noAdsBtn.textContent = 'Loading…';
-    const error = await purchaseRemoveAds();
-    if (error) {
-      alert(error);
-    }
+    const message = await purchaseRemoveAds();
+    if (message) showToast(message, 5000);
     // Button state updates via initPurchases onStatusChange callback on success;
     // restore it on failure so the user can try again.
     updateNoAdsBtn();
@@ -1207,7 +1236,10 @@ window.addEventListener('load', () => {
   // Init IAP — also silently restores any existing purchase from Google account
   initPurchases(() => {
     updateNoAdsBtn();
+    setAnalyticsDefaults({ ads_removed: isAdsRemoved() ? 1 : 0 });
   });
+  setAnalyticsDefaults({ ads_removed: isAdsRemoved() ? 1 : 0 });
+  track('game_open');
 });
 
 // Initialise AdMob banner (no-op in browser)
@@ -1236,12 +1268,12 @@ window.addEventListener('load', () => {
   // Play Again button — show interstitial after every win (skipped for ad-free users)
   document.getElementById('close-scoreboard-btn').addEventListener('click', async () => {
     hideScoreboard();
-    if (!isAdsRemoved()) {
+    recordWin();
+    // Interstitials are capped (first win free, then every 2nd win, minimum gap)
+    // and come from a preloaded ad, so there is no waiting spinner.
+    if (shouldShowInterstitial()) {
       adPlaying = true;
-      const adOverlay = document.getElementById('overlay-ad-loading');
-      if (adOverlay) adOverlay.style.display = 'flex';
       await showInterstitialAd().catch(() => {});
-      if (adOverlay) adOverlay.style.display = 'none';
       adPlaying = false;
     }
     previousFrame = 0;
