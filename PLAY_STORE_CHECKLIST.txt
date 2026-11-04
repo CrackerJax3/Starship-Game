@@ -278,6 +278,24 @@ Review typically takes 1–7 days for a new app.
     space, launch, lander, chopsticks
 
 ═══════════════════════════════════════════════════════════════
+  IN-APP PRODUCTS (Monetize → Products → In-app products)
+═══════════════════════════════════════════════════════════════
+All one-time (non-consumable). IDs must match products.js exactly.
+Suggested prices: skins $0.99, bundle $2.99, remove_ads $1.99.
+
+[ ] remove_ads               (already live)
+[ ] cosmetics_bundle         "Hangar Pass: all liveries"
+[ ] skin_starship_stainless  "Stainless Starship livery"
+[ ] skin_starship_gold       "Gold Foil Starship livery"
+[ ] skin_starship_mars       "Mars Red Starship livery"
+[ ] skin_booster_gold        "Gold Foil Booster livery"
+[ ] skin_booster_midnight    "Midnight Booster livery"
+[ ] skin_starlink_gold       "Gold payload"
+[ ] skin_starlink_neon       "Neon payload"
+[ ] Activate each product; test with a license-tester account
+
+
+═══════════════════════════════════════════════════════════════
   SUMMARY — MINIMUM REQUIRED BEFORE SUBMISSION
 ═══════════════════════════════════════════════════════════════
 

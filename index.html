@@ -227,6 +227,34 @@
 			font-size: 0.85em;
 			margin-bottom: 12px;
 		}
+		/* Hangar (cosmetics store) */
+		#overlay-hangar { z-index: 16; }
+		#overlay-hangar .overlay-box { padding: 24px 20px; max-height: 92vh; overflow-y: auto; }
+		#overlay-hangar h2 { margin-bottom: 12px; }
+		#hangar-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+		.hangar-tab {
+			flex: 1; padding: 8px 4px; font-family: 'Trebuchet MS', sans-serif; font-size: 0.9em;
+			background: rgba(255, 255, 255, 0.06); color: rgba(255, 255, 255, 0.7);
+			border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; cursor: pointer;
+		}
+		.hangar-tab.active { background: rgba(29, 115, 255, 0.45); border-color: rgba(29, 115, 255, 0.8); color: #fff; }
+		#hangar-preview { width: 100%; height: 160px; display: block; margin-bottom: 10px;
+			background: radial-gradient(ellipse at center, rgba(60, 90, 140, 0.35), rgba(0, 0, 0, 0) 70%); }
+		#hangar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin-bottom: 12px; }
+		.hangar-card {
+			display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px;
+			background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15);
+			border-radius: 8px; color: #fff; font-family: 'Trebuchet MS', sans-serif; cursor: pointer;
+		}
+		.hangar-card.selected { border-color: #ffd700; background: rgba(255, 215, 0, 0.08); }
+		.hangar-thumb { width: 100%; height: 56px; }
+		.hangar-card-name { font-size: 0.85em; }
+		.hangar-card-status { font-size: 0.75em; color: rgba(255, 255, 255, 0.55); }
+		.hangar-buttons { display: flex; flex-direction: column; gap: 8px; }
+		.hangar-buttons .btn { width: 100%; margin: 0; }
+		.hangar-buttons .btn:disabled { opacity: 0.5; cursor: default; }
+		#hangar-restore-btn { font-family: inherit; cursor: pointer; background: none; border: none; color: rgba(255, 255, 255, 0.5); font-size: 0.85em; text-decoration: underline; padding: 4px; }
+
 		.pause-menu-buttons {
 			display: flex;
 			flex-direction: column;
@@ -361,8 +389,25 @@
 				<button class="btn" id="pause-restart-btn">Restart</button>
 				<button class="btn" id="pause-username-btn">Callsign</button>
 				<button class="btn" id="pause-share-btn">Share</button>
+				<button class="btn" id="pause-hangar-btn">Hangar</button>
 				<button class="btn" id="pause-noads-btn">No Ads</button>
 				<button class="btn btn-primary" id="pause-resume-btn">Continue</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Hangar overlay (cosmetics store) -->
+	<div id="overlay-hangar" class="overlay" style="display:none">
+		<div class="overlay-box">
+			<h2>Hangar</h2>
+			<div id="hangar-tabs"></div>
+			<canvas id="hangar-preview"></canvas>
+			<div id="hangar-grid"></div>
+			<div class="hangar-buttons">
+				<button class="btn btn-primary" id="hangar-action-btn">Equip</button>
+				<button class="btn" id="hangar-bundle-btn">Unlock all liveries</button>
+				<button class="btn" id="hangar-close-btn">Back</button>
+				<button id="hangar-restore-btn">Restore purchases</button>
 			</div>
 		</div>
 	</div>

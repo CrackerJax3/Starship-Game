@@ -11,7 +11,12 @@ import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { playSound, setThrust, stopAllSounds, stopAllExcept } from './sounds.js';
-import { initPurchases, purchaseRemoveAds, isAdsRemoved } from './inapppurchase.js';
+import {
+  initPurchases, purchaseRemoveAds, isAdsRemoved, getPrice, ownedProducts, onOwnershipChange,
+} from './inapppurchase.js';
+import { REMOVE_ADS } from './products.js';
+import { initCosmetics, sprite, onCosmeticsChange } from './cosmetics.js';
+import { initHangar, openHangar } from './hangar.js';
 
 // PI_ON_180 is useful for converting degrees to radians,
 // which is the form of angle that computers generally use
@@ -32,7 +37,8 @@ function overlayVisible() {
   return document.getElementById('overlay-name').style.display !== 'none'
     || document.getElementById('overlay-scoreboard').style.display !== 'none'
     || document.getElementById('overlay-pause').style.display !== 'none'
-    || document.getElementById('overlay-continue').style.display !== 'none';
+    || document.getElementById('overlay-continue').style.display !== 'none'
+    || document.getElementById('overlay-hangar').style.display !== 'none';
 }
 
 function vibrate(pattern) {
@@ -209,6 +215,14 @@ const Images = {
   arrow_white: img('./images/Arrow White.png'),
 };
 
+// Equipped cosmetics are built from these base sprites (see cosmetics.js).
+initCosmetics({
+  ship: Images.ship,
+  shipTop: Images.shipTop,
+  shipBottom: Images.shipBottom,
+  starlink: Images.starlink,
+});
+
 class Game {
   constructor() {
     this.groundLevel = GROUND_LEVEL;
@@ -270,7 +284,15 @@ class Game {
     this.objective.controlShip = this.ship;
     this.scene.add(this.ship);
     this.ship.addEventListener('update', this.ship.updateControl);
+    this.applyCosmetics();
     this.loadLeaderboard();
+  }
+
+  // Swap in the equipped skins. Purely visual; safe to call mid-flight.
+  applyCosmetics() {
+    this.shipFull.image = sprite('ship') || Images.ship;
+    this.shipTop.image = sprite('shipTop') || Images.shipTop;
+    this.shipBottom.image = sprite('shipBottom') || Images.shipBottom;
   }
 
   // a function to create an explosion effect with particles
@@ -571,7 +593,7 @@ class Game {
         this.ship.velocity.rotation = 0;
         if (!this.starlinksReleased) {
           for (let i = 1; i <= 10; i += 1) {
-            const starlink = new GameObject(0, 0, 0, Images.starlink);
+            const starlink = new GameObject(0, 0, 0, sprite('starlink') || Images.starlink);
             starlink.id = i;
             starlink.addEventListener('update', function update(deltaTime2) {
               this.velocity.x += Math.cos(this.rotation * PI_ON_180) * 15 * deltaTime2;
@@ -1153,6 +1175,7 @@ window.addEventListener('load', () => {
   const restartBtn = document.getElementById('pause-restart-btn');
   const usernameBtn = document.getElementById('pause-username-btn');
   const noAdsBtn = document.getElementById('pause-noads-btn');
+  const hangarBtn = document.getElementById('pause-hangar-btn');
 
   function updateNoAdsBtn() {
     if (isAdsRemoved()) {
@@ -1160,7 +1183,7 @@ window.addEventListener('load', () => {
       noAdsBtn.disabled = true;
       noAdsBtn.style.opacity = '0.5';
     } else {
-      noAdsBtn.textContent = 'No Ads $1.99';
+      noAdsBtn.textContent = `No Ads ${getPrice(REMOVE_ADS) || ''}`.trim();
       noAdsBtn.disabled = false;
       noAdsBtn.style.opacity = '';
     }
@@ -1233,12 +1256,25 @@ window.addEventListener('load', () => {
     updateNoAdsBtn();
   });
 
-  // Init IAP — also silently restores any existing purchase from Google account
+  initHangar({
+    showToast,
+    onClose: () => openPauseMenu(), // back to the menu it was opened from
+  });
+  hangarBtn.addEventListener('click', () => {
+    pauseOverlay.style.display = 'none';
+    openHangar('pause_menu');
+  });
+
+  const updateAnalyticsDefaults = () => setAnalyticsDefaults({
+    ads_removed: isAdsRemoved() ? 1 : 0,
+    purchases_owned: ownedProducts().length,
+  });
+  // Init IAP — also silently restores any existing purchase from the store account
   initPurchases(() => {
     updateNoAdsBtn();
-    setAnalyticsDefaults({ ads_removed: isAdsRemoved() ? 1 : 0 });
+    updateAnalyticsDefaults();
   });
-  setAnalyticsDefaults({ ads_removed: isAdsRemoved() ? 1 : 0 });
+  updateAnalyticsDefaults();
   track('game_open');
 });
 
@@ -1264,6 +1300,10 @@ window.addEventListener('load', () => {
   document.body.append(canvas);
 
   const game = new Game();
+  // Re-skin when the player equips something, or when ownership changes (a
+  // refund reverts to the default skin).
+  onCosmeticsChange(() => game.applyCosmetics());
+  onOwnershipChange(() => game.applyCosmetics());
 
   // Play Again button — show interstitial after every win (skipped for ad-free users)
   document.getElementById('close-scoreboard-btn').addEventListener('click', async () => {
