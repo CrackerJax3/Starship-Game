@@ -2,7 +2,13 @@ import Scene from './scenes.js';
 import GameObject from './gameobject.js';
 import Particle from './particle.js';
 import Ship from './ship.js';
-import { submitScore, getTopScores } from './leaderboard.js';
+import {
+  submitScore, getTopScores, submitGhost, fetchGhost,
+} from './leaderboard.js';
+import {
+  GhostRecorder, loadGhost, ghostPose, ghostCandidates, ghostsEnabled, setGhostsEnabled,
+  saveLocalGhost, localGhost, FLAG_FULL, FLAG_TOP, FLAG_BOTTOM,
+} from './ghost.js';
 import {
   initAdMob, showInterstitialAd, showRewardedAd, recordWin, shouldShowInterstitial, shouldOfferRewarded,
 } from './admob.js';
@@ -247,6 +253,10 @@ class Game {
     this.descentAlerts = { 40: false, 30: false, 20: false }; // altitude descent warnings (km)
     this.invertPromptTimer = 0; // how long to show the invert prompt (ms)
     this.confetti = []; // world-record confetti pieces
+    this.recorder = new GhostRecorder(); // records this run for others to race
+    this.ghost = null; // the ghost being raced (see ghost.js)
+    this.ghostRequest = 0; // guards against out-of-order ghost loads
+    this.splitText = ''; // "-1.20s vs NAME" shown under checkpoint text
     this.particles = []; // array to store all particles created
     this.stars = []; // WIP
     // object to store info on the current objective
@@ -372,6 +382,8 @@ class Game {
     this.descentAlerts = { 40: false, 30: false, 20: false };
     this.invertPromptTimer = 0;
     this.confetti = [];
+    this.recorder.reset();
+    this.splitText = '';
     // reset the default objective
     this.objective.name = 'space';
     this.objective.text = 'Get to orbit!';
@@ -525,7 +537,90 @@ class Game {
   }
 
   loadLeaderboard() {
-    getTopScores(10).then((scores) => { this.topScores = scores; });
+    getTopScores(10).then((scores) => {
+      this.topScores = scores;
+      this.loadGhost();
+    });
+  }
+
+  // Pick the ghost to race: the player one place ahead (see ghostCandidates),
+  // falling back to the player's own best run stored on this device.
+  async loadGhost() {
+    const request = ++this.ghostRequest;
+    if (!ghostsEnabled()) { this.ghost = null; return; }
+    const playerName = localStorage.getItem('starshipPlayerName') || '';
+    let ghost = null;
+    for (const entry of ghostCandidates(this.topScores, playerName)) { // eslint-disable-line no-restricted-syntax
+      // Already racing this one: keep it.
+      if (this.ghost?.scoreId === entry.id) { ghost = this.ghost; break; }
+      // eslint-disable-next-line no-await-in-loop
+      ghost = loadGhost(await fetchGhost(entry.id), 'leaderboard');
+      if (request !== this.ghostRequest) return; // a newer load started
+      if (ghost) { ghost.scoreId = entry.id; break; }
+    }
+    if (!ghost) ghost = loadGhost(localGhost(), 'self');
+    if (ghost && ghost !== this.ghost) track('ghost_loaded', { source: ghost.source });
+    // Don't swap ghosts mid-flight; the new one applies from the next launch.
+    if (!this.launched || !this.ghost) this.ghost = ghost;
+    else this.pendingGhost = ghost;
+  }
+
+  // Record a checkpoint split and compare it with the ghost's.
+  recordSplit(stage) {
+    this.recorder.split(stage, this.missionTime);
+    const theirs = this.ghost?.splits?.[stage];
+    if (!ghostsEnabled() || !Number.isFinite(theirs)) { this.splitText = ''; return; }
+    const diff = (this.missionTime - theirs) / 1000;
+    const who = this.ghost.source === 'self' ? 'your best' : this.ghost.name;
+    this.splitText = `${diff <= 0 ? '-' : '+'}${Math.abs(diff).toFixed(2)}s vs ${who}`;
+    this.splitAhead = diff <= 0;
+  }
+
+  // Draw the ghost (translucent, default livery) plus a name tag, or an edge
+  // marker when it is off-screen.
+  renderGhost() {
+    if (!this.ghost || !this.launched || !ghostsEnabled()) return;
+    const pose = ghostPose(this.ghost, this.missionTime);
+    if (!pose) return;
+    const parts = [];
+    /* eslint-disable no-bitwise */
+    if (pose.flags & FLAG_FULL) parts.push([pose.full, Images.ship]);
+    if (pose.flags & FLAG_TOP) parts.push([pose.top, Images.shipTop]);
+    if (pose.flags & FLAG_BOTTOM) parts.push([pose.bottom, Images.shipBottom]);
+    /* eslint-enable no-bitwise */
+    if (!parts.length) return;
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    parts.forEach(([p, image]) => {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.translate(p.x + this.Camera.x, p.y + this.Camera.y);
+      ctx.rotate(p.rotation * PI_ON_180);
+      ctx.drawImage(image, -image.width / 2, -image.height / 2);
+    });
+    ctx.restore();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Tag the ghost part nearest the vehicle the player is flying.
+    const dist = (p) => (p.x - this.ship.x) ** 2 + (p.y - this.ship.y) ** 2;
+    const anchor = parts.map(([p]) => p).sort((a, b) => dist(a) - dist(b))[0];
+    const label = this.ghost.source === 'self' ? 'Your best' : this.ghost.name;
+    const sx = anchor.x + this.Camera.x;
+    const sy = anchor.y + this.Camera.y;
+    const m = 28;
+    ctx.font = '12px Trebuchet MS';
+    ctx.textAlign = 'center';
+    if (sx >= 0 && sx <= window.innerWidth && sy >= 0 && sy <= window.innerHeight) {
+      ctx.fillStyle = 'rgba(160,235,255,0.75)';
+      ctx.fillText(label, sx, sy - 70);
+    } else {
+      const cx = Math.min(Math.max(sx, m), window.innerWidth - m);
+      const cy = Math.min(Math.max(sy, m + 40), window.innerHeight - m);
+      ctx.fillStyle = 'rgba(160,235,255,0.6)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillText(label, cx, cy + (cy > window.innerHeight / 2 ? -10 : 18));
+    }
   }
 
   Update(deltaTime) {
@@ -538,6 +633,7 @@ class Game {
         if (!this.launched) {
           this.launched = true;
           this.missionStartTime = performance.now();
+          if (this.pendingGhost) { this.ghost = this.pendingGhost; this.pendingGhost = null; }
           track('run_start');
           // move and rotate the ship slightly
           //this.ship.x = -20;
@@ -614,6 +710,7 @@ class Game {
                   game.checkpointInSpace = true;
                   track('checkpoint', { stage: 'starlink_deployed', mission_ms: Math.round(game.missionTime) });
                   game.checkpointTime = game.missionTime;
+                  game.recordSplit('starlink_deployed');
                   game.checkpointText = 'Checkpoint saved!';
                   game.checkpointTextTimer = 3000;
                   vibrate([50, 30, 50, 30, 150]);
@@ -645,6 +742,7 @@ class Game {
             this.checkpointBoosterLanded = true;
             track('checkpoint', { stage: 'booster_landed', mission_ms: Math.round(this.missionTime) });
             this.checkpointTime = this.missionTime;
+            this.recordSplit('booster_landed');
             this.checkpointText = 'Checkpoint saved! Booster landed.';
             this.checkpointTextTimer = 3000;
             this.descentAlerts = { 40: false, 30: false, 20: false };
@@ -689,6 +787,7 @@ class Game {
       // update mission timer
       if (this.launched && !this.won) {
         this.missionTime = performance.now() - this.missionStartTime;
+        this.recorder.sample(this);
       }
       // descent altitude warnings (during landing phases only)
       if (this.objective.name === 'landing pad' && this.objective.controlShip && this.ship.velocity.y > 30) {
@@ -719,17 +818,25 @@ class Game {
           stopAllSounds();
           playSound('victory');
           const finalTime = this.missionTime + this.penaltyMs;
+          const racedGhost = this.ghost && ghostsEnabled() ? this.ghost : null;
           track('run_win', {
             final_ms: Math.round(finalTime),
             penalty_ms: Math.round(this.penaltyMs),
             death_count: window._deathCount || 0,
+            ghost: racedGhost ? racedGhost.source : 'none',
+            ghost_beaten: racedGhost ? Number(finalTime < racedGhost.time) : 0,
           });
-          if (this.bestTime === null || finalTime < this.bestTime) {
+          const playerName = localStorage.getItem('starshipPlayerName') || 'Anonymous';
+          const isPersonalBest = this.bestTime === null || finalTime < this.bestTime;
+          const recording = isPersonalBest ? this.recorder.finish(this) : null;
+          if (isPersonalBest) {
             this.bestTime = finalTime;
             localStorage.setItem('bestTime', this.bestTime);
+            if (recording) saveLocalGhost({ name: playerName, time: Math.round(finalTime), ...recording });
           }
-          const playerName = localStorage.getItem('starshipPlayerName') || 'Anonymous';
-          submitScore(playerName, finalTime).then(() => {
+          submitScore(playerName, finalTime).then((scoreId) => {
+            // Upload the path so others can race it (personal bests only).
+            if (recording && typeof scoreId === 'string') submitGhost(scoreId, playerName, finalTime, recording);
             getTopScores(10).then((scores) => {
               this.topScores = scores;
               const isWR = scores.length > 0
@@ -864,6 +971,9 @@ class Game {
       ctx.drawImage(Images.earth, earthX, earthY, earthW, earthW);
     }
     // }
+    // Ghost (drawn first so the player's own ship is on top) {
+    this.renderGhost();
+    // }
     // Scene {
     this.scene.render(ctx, this.Camera);
     // }
@@ -957,7 +1067,9 @@ class Game {
       ctx.font = hudFontSm;
       this.topScores.forEach((entry, i) => {
         const y = lbStartY + lbRowH + i * lbRowH;
-        ctx.fillStyle = entry.name === playerName ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.55)';
+        if (entry.name === playerName) ctx.fillStyle = 'rgba(255,215,0,0.9)';
+        else if (ghostsEnabled() && this.ghost?.scoreId && this.ghost.scoreId === entry.id) ctx.fillStyle = 'rgba(140,230,255,0.9)';
+        else ctx.fillStyle = 'rgba(255,255,255,0.55)';
         ctx.fillText(`${i + 1}. ${entry.name}`, 10, y);
         ctx.textAlign = 'right';
         ctx.fillText(this.formatTime(entry.time), lbRightX, y);
@@ -982,6 +1094,12 @@ class Game {
       ctx.font = hudFontLg;
       ctx.textAlign = 'center';
       ctx.fillText(this.checkpointText || 'Checkpoint saved!', window.innerWidth / 2, window.innerHeight / 2);
+      if (this.splitText) {
+        const a = Math.min(this.checkpointTextTimer / 500, 1);
+        ctx.font = hudFontMd;
+        ctx.fillStyle = this.splitAhead ? `rgba(120, 255, 160, ${a})` : `rgba(255, 140, 120, ${a})`;
+        ctx.fillText(this.splitText, window.innerWidth / 2, window.innerHeight / 2 + hudPx(34));
+      }
     }
     // Invert-for-landing prompt
     if (this.invertPromptTimer > 0) {
@@ -1323,6 +1441,19 @@ window.addEventListener('load', () => {
   // Share buttons
   document.getElementById('scoreboard-share-btn').addEventListener('click', shareGame);
   document.getElementById('pause-share-btn').addEventListener('click', shareGame);
+
+  // Ghost on/off (pause menu)
+  const ghostBtn = document.getElementById('pause-ghost-btn');
+  const updateGhostBtn = () => { ghostBtn.textContent = `Ghost: ${ghostsEnabled() ? 'On' : 'Off'}`; };
+  updateGhostBtn();
+  ghostBtn.addEventListener('click', () => {
+    const on = !ghostsEnabled();
+    setGhostsEnabled(on);
+    track('ghost_toggle', { on: Number(on) });
+    updateGhostBtn();
+    if (on) game.loadGhost();
+    else { game.ghost = null; game.pendingGhost = null; game.splitText = ''; }
+  });
 
   // Burger menu restart button
   if (window._pauseRestartBtn) {
